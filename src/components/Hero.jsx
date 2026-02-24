@@ -38,9 +38,11 @@ export function Hero() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Button variant="outline" size="xl">
-              Learn More
-            </Button>
+            <a href="#how-it-works">
+              <Button variant="outline" size="xl">
+                Learn More
+              </Button>
+            </a>
           </div>
         </div>
 

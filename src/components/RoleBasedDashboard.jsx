@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { StatCard } from "@/components/StatCard";
 import { ListDonationDialog } from "@/components/ListDonationDialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -53,20 +52,14 @@ function AdminDashboard() {
 
   const load = async () => {
     setLoading(true);
-    const [donRes, profilesRes] = await Promise.all([
-      supabase.from("donations").select("id, food_name, category, quantity, status, created_at, expiry_date"),
-      supabase.from("profiles").select("user_id, full_name, organization_name, created_at"),
-    ]);
-    const donations = donRes.data || [];
-    const profiles  = profilesRes.data || [];
     setStats({
-      total:     donations.length,
-      available: donations.filter((d) => d.status === "available").length,
-      claimed:   donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length,
-      users:     profiles.length,
+      total:     0,
+      available: 0,
+      claimed:   0,
+      users:     0,
     });
-    setRecentDonations(donations.slice(0, 10));
-    setUsers(profiles.slice(0, 6));
+    setRecentDonations([]);
+    setUsers([]);
     setLoading(false);
   };
 
@@ -174,16 +167,13 @@ function DonorDashboard() {
   const fetchDonations = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("donations").select("*").eq("donor_id", user.id).order("created_at", { ascending: false });
-    setDonations(data || []);
+    setDonations([]);
     setLoading(false);
   };
 
   useEffect(() => { fetchDonations(); }, [user]);
 
   const handleDelete = async (id) => {
-    await supabase.from("donations").delete().eq("id", id);
     setDonations((prev) => prev.filter((d) => d.id !== id));
   };
 
@@ -271,9 +261,7 @@ function RecipientDashboard() {
 
   const fetchDonations = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("donations").select("*").eq("status", "available").order("expiry_date", { ascending: true });
-    setAvailable(data || []);
+    setAvailable([]);
     setLoading(false);
   };
 
@@ -281,16 +269,11 @@ function RecipientDashboard() {
 
   const handleClaim = async (donation) => {
     setClaiming(donation.id);
-    const { error } = await supabase.from("donations").update({ status: "claimed" }).eq("id", donation.id);
-    if (error) {
-      toast({ title: "Could not claim", description: error.message, variant: "destructive" });
-    } else {
-      const next = [...claimedIds, donation.id];
-      setClaimedIds(next);
-      localStorage.setItem("claimed_donations", JSON.stringify(next));
-      setAvailable((prev) => prev.filter((d) => d.id !== donation.id));
-      toast({ title: "Claimed! 🎉", description: `${donation.food_name} has been reserved for pickup.` });
-    }
+    const next = [...claimedIds, donation.id];
+    setClaimedIds(next);
+    localStorage.setItem("claimed_donations", JSON.stringify(next));
+    setAvailable((prev) => prev.filter((d) => d.id !== donation.id));
+    toast({ title: "Claimed! 🎉", description: `${donation.food_name} has been reserved for pickup.` });
     setClaiming(null);
   };
 
@@ -395,8 +378,7 @@ function AnalystDashboard() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("donations").select("id, status, category, created_at, expiry_date");
-    setDonations(data || []);
+    setDonations([]);
     setLoading(false);
   };
 

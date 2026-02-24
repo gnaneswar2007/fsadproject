@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -7,7 +6,7 @@ import {
   Settings, User, Building2, Mail, Shield, LogOut,
   Loader2, Save, CheckCircle2,
 } from "lucide-react";
-import { signOut } from "@/lib/supabase-auth";
+import { signOut } from "@/lib/mock-auth";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -30,33 +29,41 @@ export function SettingsPage() {
   // Load profile
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, organization_name")
-        .eq("user_id", user.id)
-        .single();
-      if (data) setProfile({ full_name: data.full_name || "", organization_name: data.organization_name || "" });
-      setLoading(false);
-    };
-    load();
+    // Mock profile is stored in localStorage
+    const stored = localStorage.getItem("mock_auth_user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setProfile({ 
+          full_name: parsed.profile?.full_name || "", 
+          organization_name: parsed.profile?.organization_name || "" 
+        });
+      } catch {}
+    }
+    setLoading(false);
   }, [user]);
 
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ full_name: profile.full_name, organization_name: profile.organization_name })
-      .eq("user_id", user.id);
-    setSaving(false);
-    if (error) {
-      toast({ title: "Save failed", description: error.message, variant: "destructive" });
-    } else {
+    // Update mock auth with new profile data
+    try {
+      const stored = localStorage.getItem("mock_auth_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.profile = {
+          full_name: profile.full_name,
+          organization_name: profile.organization_name
+        };
+        localStorage.setItem("mock_auth_user", JSON.stringify(parsed));
+      }
       setSaved(true);
       toast({ title: "Profile saved", description: "Your profile has been updated." });
       setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -10,7 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -62,26 +61,8 @@ export function ListDonationDialog({
     }
 
     setSaving(true);
-    const { error } = await supabase.from("donations").insert({
-      donor_id: user.id,
-      food_name: form.food_name.trim(),
-      category: form.category,
-      quantity: form.quantity.trim(),
-      expiry_date: format(expiryDate, "yyyy-MM-dd"),
-      pickup_location: form.pickup_location.trim(),
-      description: form.description.trim() || null,
-    });
+    toast({ title: "Error saving donation", description: "Database is no longer available", variant: "destructive" });
     setSaving(false);
-
-    if (error) {
-      toast({ title: "Error saving donation", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Donation listed!", description: `${form.food_name} is now visible to recipients.` });
-      setForm(emptyForm);
-      setExpiryDate(undefined);
-      setOpen(false);
-      onSuccess?.();
-    }
   };
 
   return (

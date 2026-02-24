@@ -4,7 +4,6 @@ import { CalendarIcon, Gift, Loader2, MapPin, Package, Trash2 } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { ListDonationDialog } from "@/components/ListDonationDialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -24,17 +23,6 @@ export function DonationsPage() {
 
   const fetchDonations = async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("donations")
-      .select("*")
-      .eq("donor_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      setDonations(data || []);
-    }
     setLoading(false);
   };
 
@@ -43,13 +31,7 @@ export function DonationsPage() {
   }, [user]);
 
   const handleDelete = async (id) => {
-    const { error } = await supabase.from("donations").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Deleted", description: "Donation removed successfully" });
-      setDonations((prev) => prev.filter((d) => d.id !== id));
-    }
+    toast({ title: "Delete failed", description: "Database is no longer available", variant: "destructive" });
   };
 
   return (

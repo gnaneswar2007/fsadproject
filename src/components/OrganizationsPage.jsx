@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,11 +33,7 @@ function AdminOrgsView() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("user_id, full_name, organization_name, created_at")
-      .order("created_at", { ascending: false });
-    setProfiles(data || []);
+    setProfiles([]);
     setLoading(false);
   };
 
@@ -129,15 +124,7 @@ function RecipientOrgsView() {
 
   const load = async () => {
     setLoading(true);
-    // Fetch donations that are claimed/picked_up (visible to recipient via RLS on all)
-    const { data } = await supabase
-      .from("donations")
-      .select("*")
-      .in("status", ["claimed", "picked_up"])
-      .order("updated_at", { ascending: false })
-      .limit(20);
-    // Filter to ones the user claimed in this session
-    const mine = (data || []).filter((d) => claimedIds.includes(d.id));
+    const mine = [];
     setClaimed(mine);
     setLoading(false);
   };

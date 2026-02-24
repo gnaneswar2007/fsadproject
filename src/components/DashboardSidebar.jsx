@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { signOut } from "@/lib/supabase-auth";
+import { signOut } from "@/lib/mock-auth";
 import { useNavigate } from "react-router-dom";
 
 const navItems = [

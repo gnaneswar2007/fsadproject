@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/StatCard";
 import { cn } from "@/lib/utils";
@@ -36,8 +35,7 @@ export function AnalyticsPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("donations").select("id, status, category, created_at, expiry_date");
-    setDonations(data || []);
+    setDonations([]);
     setLoading(false);
   };
 

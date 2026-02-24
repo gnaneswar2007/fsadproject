@@ -9,7 +9,6 @@ A full-stack web application that connects surplus food donors with recipients, 
 ## Tech Stack
 
 - **React** + **Vite** — frontend framework
-- **Supabase** — backend database & authentication
 - **Tailwind CSS** + **shadcn/ui** — styling and components
 - **React Router** — client-side routing
 
@@ -44,4 +43,3 @@ npm run dev
 - Real-time donation listings with category filters
 - Analytics with charts and impact stats
 - User management (edit roles, delete users) — Admin only
-- Secure authentication via Supabase

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -43,8 +42,6 @@ function EditUserModal({ user, onClose, onSave }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await supabase.from("profiles").update({ full_name: fullName, organization_name: orgName || null }).eq("user_id", user.user_id);
-      await supabase.from("user_roles").upsert({ user_id: user.user_id, role }, { onConflict: "user_id" });
       onSave({ ...user, full_name: fullName, organization_name: orgName, role });
       onClose();
     } finally {
@@ -115,8 +112,6 @@ function DeleteConfirmModal({ user, onClose, onConfirm }) {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await supabase.from("user_roles").delete().eq("user_id", user.user_id);
-      await supabase.from("profiles").delete().eq("user_id", user.user_id);
       onConfirm(user.user_id);
       onClose();
     } finally {
@@ -162,16 +157,7 @@ export function UsersPage() {
 
   const load = async () => {
     setLoading(true);
-    const [profilesRes, rolesRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, full_name, organization_name, created_at").order("created_at", { ascending: false }),
-      supabase.from("user_roles").select("user_id, role"),
-    ]);
-    const profiles = profilesRes.data || [];
-    const roles    = rolesRes.data   || [];
-    const combined = profiles.map((p) => ({
-      ...p,
-      role: roles.find((r) => r.user_id === p.user_id)?.role || null,
-    }));
+    const combined = [];
     setUserList(combined);
     setLoading(false);
   };

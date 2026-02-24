@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { signOut } from "@/lib/supabase-auth";
+import { signOut } from "@/lib/mock-auth";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -18,6 +18,19 @@ export function Navbar() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    // Check if we're already on the home page
+    if (window.location.pathname === "/") {
+      // Scroll to top smoothly
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      // Navigate to home
+      navigate("/");
+    }
+    setIsOpen(false);
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
@@ -29,12 +42,12 @@ export function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <a href="/" onClick={handleLogoClick} className="flex items-center gap-2 cursor-pointer">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-primary">
               <Leaf className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-lg font-bold text-foreground">FoodSecurity</span>
-          </Link>
+          </a>
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 lg:flex">

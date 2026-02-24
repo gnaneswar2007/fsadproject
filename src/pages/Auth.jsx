@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { signIn, signUp, AppRole } from "@/lib/supabase-auth";
+import { signIn, signUp, AppRole } from "@/lib/mock-auth";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Personal admin email — always gets admin role ─────────────────────────────
@@ -127,79 +127,17 @@ export default function Auth() {
 
   const handleDemoLogin = async (account) => {
     setDemoLoading(account.role);
-    const roleNames = { admin: "Demo Admin", donor: "Demo Donor", recipient: "Demo Recipient", analyst: "Demo Analyst" };
-
-    const trySignIn = async () => {
-      const { data, error } = await signIn(account.email, account.password);
-      if (!error && data?.user) return { ok: true };
-      return { ok: false, error };
-    };
-
     try {
-      // 1. Try signing in first (account may already exist)
-      const first = await trySignIn();
-      if (first.ok) {
-        toast({ title: `Signed in as ${account.label}`, description: `Welcome to the ${account.label} dashboard!` });
-        navigate("/dashboard");
-        return;
-      }
-
-      // 2. Try to create the account (first-time provisioning)
-      const { data: signUpData, error: signUpError } = await signUp(
-        account.email,
-        account.password,
-        account.role,
-        roleNames[account.role],
-        account.role === "recipient" ? "Demo Organization" : undefined
-      );
-
-      // 3. Account already exists — retry sign-in and surface the real error if it fails
-      if (signUpError) {
-        const alreadyExists =
-          signUpError.message?.toLowerCase().includes("already registered") ||
-          signUpError.message?.toLowerCase().includes("already exists");
-        if (alreadyExists) {
-          const retry = await trySignIn();
-          if (retry.ok) {
-            toast({ title: `Signed in as ${account.label}`, description: `Welcome to the ${account.label} dashboard!` });
-            navigate("/dashboard");
-            return;
-          }
-          // Surface the real Supabase error (e.g. "Email not confirmed")
-          const msg = retry.error?.message || "Sign-in failed";
-          const isEmailConfirm = msg.toLowerCase().includes("email") && msg.toLowerCase().includes("confirm");
-          throw new Error(
-            isEmailConfirm
-              ? "Email confirmation required. In Supabase → Authentication → Email → disable 'Confirm email'."
-              : msg
-          );
-        }
-        throw signUpError;
-      }
-
-      // 4. Fresh sign-up — session available (email confirmation disabled)
-      if (signUpData?.session) {
-        toast({ title: `Demo account ready!`, description: `Signed in as ${account.label}.` });
-        navigate("/dashboard");
-        return;
-      }
-
-      // 5. No session after sign-up — try signing in
-      const last = await trySignIn();
-      if (last.ok) {
-        toast({ title: `Signed in as ${account.label}`, description: `Welcome to the ${account.label} dashboard!` });
-        navigate("/dashboard");
+      const { data, error } = await signIn(account.email, account.password);
+      if (error) {
+        toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
-        const msg = last.error?.message || "Sign-in failed after registration";
-        const isEmailConfirm = msg.toLowerCase().includes("email") && msg.toLowerCase().includes("confirm");
-        throw new Error(
-          isEmailConfirm
-            ? "Email confirmation required. In Supabase → Authentication → Email → disable 'Confirm email'."
-            : msg
-        );
+        toast({ title: `Signed in as ${account.label}`, description: `Welcome to the ${account.label} dashboard!` });
+        // Small delay to allow localStorage to persist
+        setTimeout(() => navigate("/dashboard"), 100);
       }
     } catch (err) {
-      toast({ title: "Demo login failed", description: err.message, variant: "destructive" });
+      toast({ title: "Login failed", description: err.message || "An error occurred", variant: "destructive" });
     } finally {
       setDemoLoading(null);
     }
@@ -210,10 +148,11 @@ export default function Auth() {
     setLoading(true);
     try {
       const { data, error } = await signIn(form.email, form.password);
-      if (error) throw error;
-      if (data.user) {
+      if (error) {
+        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      } else {
         toast({ title: "Welcome back", description: "Successfully signed in." });
-        navigate("/dashboard");
+        setTimeout(() => navigate("/dashboard"), 100);
       }
     } catch (err) {
       toast({ title: "Login failed", description: err.message || "Invalid credentials", variant: "destructive" });
@@ -230,7 +169,6 @@ export default function Auth() {
     }
     setLoading(true);
     try {
-      // Force admin role for the personal admin email regardless of selected role
       const effectiveRole = form.email.toLowerCase() === SUPER_ADMIN_EMAIL ? "admin" : selectedRole;
 
       const { data, error } = await signUp(
@@ -240,17 +178,12 @@ export default function Auth() {
         form.fullName,
         form.organizationName || undefined
       );
-      if (error) throw error;
-      // if email confirmation is off, data.session is set → go straight to dashboard
-      if (data.session) {
-        navigate("/dashboard");
-        return;
+      if (error) {
+        toast({ title: "Registration failed", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Account created", description: "Welcome! You're now signed in." });
+        setTimeout(() => navigate("/dashboard"), 100);
       }
-      toast({
-        title: "Account created",
-        description: "Please check your email to verify your account.",
-      });
-      setMode("login");
     } catch (err) {
       toast({ title: "Registration failed", description: err.message || "Could not create account", variant: "destructive" });
     } finally {
