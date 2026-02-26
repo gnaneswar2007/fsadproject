@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { StatCard } from "@/components/StatCard";
 import { ListDonationDialog } from "@/components/ListDonationDialog";
 import { Button } from "@/components/ui/button";
@@ -13,13 +14,17 @@ import {
   RefreshCw, HandHeart,
 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  getDonations, getDonationsByUser, getAvailableDonations,
+  deleteDonation, updateDonationStatus, getUsers,
+} from "@/lib/mock-db";
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 const donationStatusColors = {
   available: "bg-success/10 text-success border-success/30",
-  claimed:   "bg-info/10 text-info border-info/30",
+  claimed: "bg-info/10 text-info border-info/30",
   picked_up: "bg-primary/10 text-primary border-primary/30",
-  expired:   "bg-destructive/10 text-destructive border-destructive/30",
+  expired: "bg-destructive/10 text-destructive border-destructive/30",
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
@@ -49,17 +54,20 @@ function AdminDashboard() {
   const [recentDonations, setRecentDonations] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
+    const allDonations = getDonations();
+    const allUsers = getUsers();
     setStats({
-      total:     0,
-      available: 0,
-      claimed:   0,
-      users:     0,
+      total: allDonations.length,
+      available: allDonations.filter((d) => d.status === "available").length,
+      claimed: allDonations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length,
+      users: allUsers.length,
     });
-    setRecentDonations([]);
-    setUsers([]);
+    setRecentDonations(allDonations.slice().reverse());
+    setUsers(allUsers);
     setLoading(false);
   };
 
@@ -80,10 +88,10 @@ function AdminDashboard() {
       {loading ? <LoadingSpinner /> : (
         <>
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Donations"  value={String(stats.total)}     subtitle="All time"          icon={Gift}         variant="primary"   trend={{ value: `${stats.available} available`, positive: true }} />
-            <StatCard title="Active Listings"  value={String(stats.available)} subtitle="Available now"     icon={Package}      variant="secondary" />
-            <StatCard title="Claims Made"      value={String(stats.claimed)}   subtitle="Claimed or picked" icon={CheckCircle2} variant="accent"    />
-            <StatCard title="Registered Users" value={String(stats.users)}     subtitle="On platform"       icon={Users}        />
+            <StatCard title="Total Donations" value={String(stats.total)} subtitle="All time" icon={Gift} variant="primary" trend={{ value: `${stats.available} available`, positive: true }} onClick={() => navigate("/dashboard/donations")} />
+            <StatCard title="Active Listings" value={String(stats.available)} subtitle="Available now" icon={Package} variant="secondary" onClick={() => navigate("/dashboard/active-listings")} />
+            <StatCard title="Claims Made" value={String(stats.claimed)} subtitle="Claimed or picked" icon={CheckCircle2} variant="accent" onClick={() => navigate("/dashboard/success-rate")} />
+            <StatCard title="Registered Users" value={String(stats.users)} subtitle="On platform" icon={Users} onClick={() => navigate("/dashboard/users")} />
           </div>
 
           <div className="rounded-xl border bg-card p-5 shadow-soft">
@@ -163,22 +171,24 @@ function DonorDashboard() {
   const { user } = useAuth();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const fetchDonations = async () => {
     if (!user) return;
     setLoading(true);
-    setDonations([]);
+    setDonations(getDonationsByUser(user.id));
     setLoading(false);
   };
 
   useEffect(() => { fetchDonations(); }, [user]);
 
   const handleDelete = async (id) => {
+    deleteDonation(id);
     setDonations((prev) => prev.filter((d) => d.id !== id));
   };
 
-  const total     = donations.length;
-  const claimed   = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
+  const total = donations.length;
+  const claimed = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
   const available = donations.filter((d) => d.status === "available").length;
 
   return (
@@ -192,10 +202,10 @@ function DonorDashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="My Donations"    value={String(total)}     subtitle="Total listed"     icon={Gift}         variant="primary"   />
-        <StatCard title="Active Listings" value={String(available)} subtitle="Available now"    icon={Package}      variant="secondary" />
-        <StatCard title="Claims Made"     value={String(claimed)}   subtitle="By organizations" icon={CheckCircle2} variant="accent"    />
-        <StatCard title="Waste Avoided"   value={total > 0 ? `~${Math.round(total * 2.3)} kg` : "—"} subtitle="Est. food saved" icon={TrendingDown} />
+        <StatCard title="My Donations" value={String(total)} subtitle="Total listed" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="Active Listings" value={String(available)} subtitle="Available now" icon={Package} variant="secondary" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="Claims Made" value={String(claimed)} subtitle="By organizations" icon={CheckCircle2} variant="accent" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="Waste Avoided" value={total > 0 ? `~${Math.round(total * 2.3)} kg` : "—"} subtitle="Est. food saved" icon={TrendingDown} onClick={() => navigate("/dashboard/waste-avoided")} />
       </div>
 
       <div className="rounded-xl border bg-card p-5 shadow-soft">
@@ -251,9 +261,10 @@ function DonorDashboard() {
 // ─── Recipient Dashboard ─────────────────────────────────────────────────────
 function RecipientDashboard() {
   const { toast } = useToast();
-  const [available, setAvailable]   = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [claiming, setClaiming]     = useState(null);
+  const navigate = useNavigate();
+  const [available, setAvailable] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(null);
   const [claimedIds, setClaimedIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem("claimed_donations") || "[]"); } catch { return []; }
   });
@@ -261,7 +272,7 @@ function RecipientDashboard() {
 
   const fetchDonations = async () => {
     setLoading(true);
-    setAvailable([]);
+    setAvailable(getAvailableDonations());
     setLoading(false);
   };
 
@@ -269,6 +280,7 @@ function RecipientDashboard() {
 
   const handleClaim = async (donation) => {
     setClaiming(donation.id);
+    updateDonationStatus(donation.id, "claimed");
     const next = [...claimedIds, donation.id];
     setClaimedIds(next);
     localStorage.setItem("claimed_donations", JSON.stringify(next));
@@ -280,11 +292,11 @@ function RecipientDashboard() {
   const daysUntil = (dateStr) => Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
   const urgencyClass = (days) =>
     days <= 1 ? "bg-destructive/10 text-destructive border-destructive/30"
-    : days <= 3 ? "bg-warning/10 text-warning border-warning/30"
-    : "bg-success/10 text-success border-success/30";
+      : days <= 3 ? "bg-warning/10 text-warning border-warning/30"
+        : "bg-success/10 text-success border-success/30";
 
   const categories = ["all", ...new Set(available.map((d) => d.category))];
-  const filtered   = categoryFilter === "all" ? available : available.filter((d) => d.category === categoryFilter);
+  const filtered = categoryFilter === "all" ? available : available.filter((d) => d.category === categoryFilter);
   const totalClaimed = claimedIds.length;
 
   return (
@@ -300,10 +312,10 @@ function RecipientDashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Available Now"  value={String(available.length)} subtitle="Open donations"     icon={Gift}      variant="primary"   />
-        <StatCard title="My Claims"      value={String(totalClaimed)}     subtitle="This session"       icon={HandHeart} variant="secondary" />
-        <StatCard title="Expiring Soon"  value={String(available.filter((d) => daysUntil(d.expiry_date) <= 2).length)} subtitle="Within 2 days" icon={Clock} variant="accent" />
-        <StatCard title="Categories"     value={String(new Set(available.map((d) => d.category)).size)} subtitle="Types available" icon={Package} />
+        <StatCard title="Available Now" value={String(available.length)} subtitle="Open donations" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="My Claims" value={String(totalClaimed)} subtitle="This session" icon={HandHeart} variant="secondary" onClick={() => navigate("/dashboard/my-claims")} />
+        <StatCard title="Expiring Soon" value={String(available.filter((d) => daysUntil(d.expiry_date) <= 2).length)} subtitle="Within 2 days" icon={Clock} variant="accent" onClick={() => navigate("/dashboard/expiring-soon")} />
+        <StatCard title="Categories" value={String(new Set(available.map((d) => d.category)).size)} subtitle="Types available" icon={Package} onClick={() => navigate("/dashboard/categories")} />
       </div>
 
       {/* Category filter pills */}
@@ -374,26 +386,27 @@ function RecipientDashboard() {
 // ─── Analyst Dashboard ────────────────────────────────────────────────────────
 function AnalystDashboard() {
   const [donations, setDonations] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
-    setDonations([]);
+    setDonations(getDonations());
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  const total      = donations.length;
-  const claimed    = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
-  const expired    = donations.filter((d) => d.status === "expired").length;
-  const available  = donations.filter((d) => d.status === "available").length;
+  const total = donations.length;
+  const claimed = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
+  const expired = donations.filter((d) => d.status === "expired").length;
+  const available = donations.filter((d) => d.status === "available").length;
   const successRate = total > 0 ? Math.round((claimed / total) * 100) : 0;
 
-  const catOrder  = ["produce", "bakery", "dairy", "prepared", "pantry", "beverages", "other"];
+  const catOrder = ["produce", "bakery", "dairy", "prepared", "pantry", "beverages", "other"];
   const catColors = { produce: "bg-success", bakery: "bg-warning", dairy: "bg-info", prepared: "bg-accent", pantry: "bg-primary", beverages: "bg-secondary", other: "bg-muted-foreground" };
   const catCounts = catOrder.reduce((acc, c) => { acc[c] = donations.filter((d) => d.category === c).length; return acc; }, {});
-  const maxCat    = Math.max(...Object.values(catCounts), 1);
+  const maxCat = Math.max(...Object.values(catCounts), 1);
 
   const now = new Date();
   const months = Array.from({ length: 6 }, (_, i) => {
@@ -421,10 +434,10 @@ function AnalystDashboard() {
       {loading ? <LoadingSpinner /> : (
         <>
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Donations"  value={String(total)}         subtitle="All time"              icon={Gift}         variant="primary"   />
-            <StatCard title="Success Rate"     value={`${successRate}%`}     subtitle="Claimed before expiry" icon={CheckCircle2} variant="secondary" trend={{ value: claimed > 0 ? `${claimed} claimed` : "None yet", positive: claimed > 0 }} />
-            <StatCard title="Available Now"    value={String(available)}     subtitle="Open listings"         icon={Package}      variant="accent"    />
-            <StatCard title="Expired Listings" value={String(expired)}       subtitle="Went unclaimed"        icon={TrendingDown} trend={{ value: expired > 0 ? "Needs attention" : "None!", positive: expired === 0 }} />
+            <StatCard title="Total Donations" value={String(total)} subtitle="All time" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
+            <StatCard title="Success Rate" value={`${successRate}%`} subtitle="Claimed before expiry" icon={CheckCircle2} variant="secondary" trend={{ value: claimed > 0 ? `${claimed} claimed` : "None yet", positive: claimed > 0 }} onClick={() => navigate("/dashboard/success-rate")} />
+            <StatCard title="Available Now" value={String(available)} subtitle="Open listings" icon={Package} variant="accent" onClick={() => navigate("/dashboard/donations")} />
+            <StatCard title="Expired Listings" value={String(expired)} subtitle="Went unclaimed" icon={TrendingDown} trend={{ value: expired > 0 ? "Needs attention" : "None!", positive: expired === 0 }} onClick={() => navigate("/dashboard/expired-listings")} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -483,9 +496,9 @@ function AnalystDashboard() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {[
                 { label: "Available", key: "available", cls: "bg-success/10 text-success border-success/30" },
-                { label: "Claimed",   key: "claimed",   cls: "bg-info/10 text-info border-info/30" },
+                { label: "Claimed", key: "claimed", cls: "bg-info/10 text-info border-info/30" },
                 { label: "Picked Up", key: "picked_up", cls: "bg-primary/10 text-primary border-primary/30" },
-                { label: "Expired",   key: "expired",   cls: "bg-destructive/10 text-destructive border-destructive/30" },
+                { label: "Expired", key: "expired", cls: "bg-destructive/10 text-destructive border-destructive/30" },
                 { label: "Cancelled", key: "cancelled", cls: "bg-muted text-muted-foreground border-border" },
               ].map(({ label, key, cls }) => (
                 <div key={key} className={cn("rounded-lg border p-3 text-center", cls)}>
@@ -505,8 +518,8 @@ function AnalystDashboard() {
                 {successRate >= 70
                   ? `Great performance! ${successRate}% of donations are claimed before expiry.`
                   : successRate >= 40
-                  ? `${successRate}% claim rate. Consider notifying recipients earlier to improve pickup rates.`
-                  : `${successRate}% claim rate — there's room to grow. Ensure recipient orgs are notified promptly when new donations are listed.`}
+                    ? `${successRate}% claim rate. Consider notifying recipients earlier to improve pickup rates.`
+                    : `${successRate}% claim rate — there's room to grow. Ensure recipient orgs are notified promptly when new donations are listed.`}
               </p>
             </div>
           )}
@@ -519,10 +532,10 @@ function AnalystDashboard() {
 // ─── Main Export ──────────────────────────────────────────────────────────────
 export function RoleBasedDashboard({ role }) {
   switch (role) {
-    case "admin":     return <AdminDashboard />;
-    case "donor":     return <DonorDashboard />;
+    case "admin": return <AdminDashboard />;
+    case "donor": return <DonorDashboard />;
     case "recipient": return <RecipientDashboard />;
-    case "analyst":   return <AnalystDashboard />;
-    default:          return <AdminDashboard />;
+    case "analyst": return <AnalystDashboard />;
+    default: return <AdminDashboard />;
   }
 }

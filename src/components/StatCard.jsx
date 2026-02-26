@@ -22,11 +22,14 @@ export function StatCard({
   trend,
   variant = "default",
   className,
+  onClick,
 }) {
   return (
     <div
+      onClick={onClick}
       className={cn(
         "rounded-xl border p-6 shadow-soft transition-all duration-300 hover:shadow-medium animate-fade-in",
+        onClick && "cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
         variantStyles[variant],
         className
       )}

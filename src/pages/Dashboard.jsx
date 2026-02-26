@@ -5,6 +5,13 @@ import { OrganizationsPage } from "@/components/OrganizationsPage";
 import { AnalyticsPage } from "@/components/AnalyticsPage";
 import { UsersPage } from "@/components/UsersPage";
 import { SettingsPage } from "@/components/SettingsPage";
+import { WasteAvoidedPage } from "@/components/WasteAvoidedPage";
+import { MyClaimsPage } from "@/components/MyClaimsPage";
+import { ExpiringSoonPage } from "@/components/ExpiringSoonPage";
+import { CategoriesPage } from "@/components/CategoriesPage";
+import { SuccessRatePage } from "@/components/SuccessRatePage";
+import { ExpiredListingsPage } from "@/components/ExpiredListingsPage";
+import { ActiveListingsPage } from "@/components/ActiveListingsPage";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -92,6 +99,20 @@ const Dashboard = () => {
             <AnalyticsPage />
           ) : location.pathname === "/dashboard/users" ? (
             <UsersPage />
+          ) : location.pathname === "/dashboard/waste-avoided" ? (
+            <WasteAvoidedPage />
+          ) : location.pathname === "/dashboard/my-claims" ? (
+            <MyClaimsPage />
+          ) : location.pathname === "/dashboard/expiring-soon" ? (
+            <ExpiringSoonPage />
+          ) : location.pathname === "/dashboard/categories" ? (
+            <CategoriesPage />
+          ) : location.pathname === "/dashboard/success-rate" ? (
+            <SuccessRatePage />
+          ) : location.pathname === "/dashboard/expired-listings" ? (
+            <ExpiredListingsPage />
+          ) : location.pathname === "/dashboard/active-listings" ? (
+            <ActiveListingsPage />
           ) : location.pathname === "/dashboard/settings" ? (
             <SettingsPage />
           ) : (

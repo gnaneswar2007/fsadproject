@@ -1,4 +1,5 @@
 // Mock authentication system (replaces Supabase auth)
+import { upsertUser } from "@/lib/mock-db";
 
 const MOCK_USERS = [
   { id: "admin-1", email: "demo.admin@foodsaver.app", password: "demo1234", role: "admin", full_name: "Demo Admin", organization_name: null },
@@ -18,7 +19,7 @@ export const AppRole = {
 
 export async function signIn(email, password) {
   const user = MOCK_USERS.find(u => u.email === email && u.password === password);
-  
+
   if (!user) {
     return {
       data: null,
@@ -43,6 +44,15 @@ export async function signIn(email, password) {
     }
   }));
 
+  // Persist to users store so admin pages can list registered users
+  upsertUser({
+    user_id: user.id,
+    full_name: user.full_name,
+    organization_name: user.organization_name,
+    role: user.role,
+    created_at: new Date().toISOString(),
+  });
+
   return {
     data: mockSession,
     error: null
@@ -51,7 +61,7 @@ export async function signIn(email, password) {
 
 export async function signUp(email, password, role, fullName, organizationName) {
   const existingUser = MOCK_USERS.find(u => u.email === email);
-  
+
   if (existingUser) {
     return {
       data: null,
@@ -86,6 +96,15 @@ export async function signUp(email, password, role, fullName, organizationName) 
       organization_name: newUser.organization_name
     }
   }));
+
+  // Persist to users store
+  upsertUser({
+    user_id: newUser.id,
+    full_name: newUser.full_name,
+    organization_name: newUser.organization_name,
+    role: newUser.role,
+    created_at: new Date().toISOString(),
+  });
 
   return {
     data: { session: mockSession },

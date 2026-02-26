@@ -6,6 +6,8 @@ import { ListDonationDialog } from "@/components/ListDonationDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { getDonations, getDonationsByUser, deleteDonation } from "@/lib/mock-db";
+import { ExportMenu } from "@/components/ExportMenu";
 
 const statusColors = {
   available: "bg-success/10 text-success border-success/30",
@@ -16,13 +18,16 @@ const statusColors = {
 };
 
 export function DonationsPage() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDonations = async () => {
     if (!user) return;
+    setLoading(true);
+    // Admin sees all donations; everyone else sees only their own
+    setDonations(role === "admin" ? getDonations() : getDonationsByUser(user.id));
     setLoading(false);
   };
 
@@ -31,17 +36,22 @@ export function DonationsPage() {
   }, [user]);
 
   const handleDelete = async (id) => {
-    toast({ title: "Delete failed", description: "Database is no longer available", variant: "destructive" });
+    deleteDonation(id);
+    setDonations((prev) => prev.filter((d) => d.id !== id));
+    toast({ title: "Deleted", description: "Donation removed successfully." });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">My Donations</h1>
-          <p className="text-sm text-muted-foreground">List and manage your food donations</p>
+          <h1 className="text-2xl font-bold text-foreground">{role === "admin" ? "All Donations" : "My Donations"}</h1>
+          <p className="text-sm text-muted-foreground">{role === "admin" ? "View all donations on the platform" : "List and manage your food donations"}</p>
         </div>
-        <ListDonationDialog onSuccess={fetchDonations} triggerLabel="New Donation" />
+        <div className="flex items-center gap-2">
+          {(role === "admin" || role === "analyst") && <ExportMenu data={donations} filename="donations" pdfTitle="Donations Report" />}
+          {role !== "admin" && <ListDonationDialog onSuccess={fetchDonations} triggerLabel="New Donation" />}
+        </div>
       </div>
 
       {/* Donations list */}

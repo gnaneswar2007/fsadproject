@@ -8,13 +8,14 @@ import {
   Building2, Loader2, RefreshCw, Users, Gift,
   CheckCircle2, Clock, MapPin, CalendarIcon, Package,
 } from "lucide-react";
+import { getUsers, getDonations } from "@/lib/mock-db";
 
 // ─── Status colors ───────────────────────────────────────────────────────────
 const statusColors = {
   available: "bg-success/10 text-success border-success/30",
-  claimed:   "bg-info/10 text-info border-info/30",
+  claimed: "bg-info/10 text-info border-info/30",
   picked_up: "bg-primary/10 text-primary border-primary/30",
-  expired:   "bg-destructive/10 text-destructive border-destructive/30",
+  expired: "bg-destructive/10 text-destructive border-destructive/30",
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
@@ -29,11 +30,11 @@ function LoadingSpinner() {
 // ─── Admin view: all orgs/profiles ───────────────────────────────────────────
 function AdminOrgsView() {
   const [profiles, setProfiles] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    setProfiles([]);
+    setProfiles(getUsers());
     setLoading(false);
   };
 
@@ -116,15 +117,17 @@ function AdminOrgsView() {
 // ─── Recipient view: their claimed donations ──────────────────────────────────
 function RecipientOrgsView() {
   const { user } = useAuth();
-  const [claimed, setClaimed]   = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [claimedIds]            = useState(() => {
+  const [claimed, setClaimed] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [claimedIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem("claimed_donations") || "[]"); } catch { return []; }
   });
 
   const load = async () => {
     setLoading(true);
-    const mine = [];
+    // Load all donations that have been claimed (by this recipient or in general from localStorage)
+    const allDonations = getDonations();
+    const mine = allDonations.filter((d) => claimedIds.includes(d.id));
     setClaimed(mine);
     setLoading(false);
   };

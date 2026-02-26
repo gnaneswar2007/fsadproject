@@ -7,21 +7,22 @@ import {
   Users, Loader2, RefreshCw, ShieldCheck, Gift, Building2,
   BarChart3, UserCheck, Trash2, Pencil, X, Check,
 } from "lucide-react";
+import { getUsers, updateUser as dbUpdateUser, deleteUser as dbDeleteUser } from "@/lib/mock-db";
 
 const ALL_ROLES = ["admin", "donor", "recipient", "analyst"];
 
 const roleBadgeColors = {
-  admin:     "bg-primary/10 text-primary border-primary/30",
-  donor:     "bg-success/10 text-success border-success/30",
+  admin: "bg-primary/10 text-primary border-primary/30",
+  donor: "bg-success/10 text-success border-success/30",
   recipient: "bg-accent/10 text-accent border-accent/30",
-  analyst:   "bg-info/10 text-info border-info/30",
+  analyst: "bg-info/10 text-info border-info/30",
 };
 
 const roleIcons = {
-  admin:     ShieldCheck,
-  donor:     Gift,
+  admin: ShieldCheck,
+  donor: Gift,
   recipient: Building2,
-  analyst:   BarChart3,
+  analyst: BarChart3,
 };
 
 function LoadingSpinner() {
@@ -35,9 +36,9 @@ function LoadingSpinner() {
 // ─── Edit User Modal ──────────────────────────────────────────────────────────
 function EditUserModal({ user, onClose, onSave }) {
   const [fullName, setFullName] = useState(user.full_name || "");
-  const [orgName, setOrgName]   = useState(user.organization_name || "");
-  const [role, setRole]         = useState(user.role || "donor");
-  const [saving, setSaving]     = useState(false);
+  const [orgName, setOrgName] = useState(user.organization_name || "");
+  const [role, setRole] = useState(user.role || "donor");
+  const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -148,17 +149,16 @@ function DeleteConfirmModal({ user, onClose, onConfirm }) {
 }
 
 export function UsersPage() {
-  const [userList, setUserList]         = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [search, setSearch]             = useState("");
-  const [roleFilter, setRoleFilter]     = useState("all");
-  const [editingUser, setEditingUser]   = useState(null);
+  const [userList, setUserList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [editingUser, setEditingUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
 
   const load = async () => {
     setLoading(true);
-    const combined = [];
-    setUserList(combined);
+    setUserList(getUsers());
     setLoading(false);
   };
 
@@ -179,11 +179,15 @@ export function UsersPage() {
     return acc;
   }, {});
 
-  const handleSaved = (updated) =>
+  const handleSaved = (updated) => {
+    dbUpdateUser(updated);
     setUserList((prev) => prev.map((u) => u.user_id === updated.user_id ? updated : u));
+  };
 
-  const handleDeleted = (userId) =>
+  const handleDeleted = (userId) => {
+    dbDeleteUser(userId);
     setUserList((prev) => prev.filter((u) => u.user_id !== userId));
+  };
 
   return (
     <div className="space-y-8">

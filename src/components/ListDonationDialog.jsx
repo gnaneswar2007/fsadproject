@@ -12,15 +12,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { addDonation } from "@/lib/mock-db";
 
 const categories = [
-  { value: "bakery",    label: "Bakery" },
-  { value: "dairy",     label: "Dairy" },
-  { value: "produce",   label: "Produce" },
-  { value: "prepared",  label: "Prepared Meals" },
-  { value: "pantry",    label: "Packaged Goods" },
+  { value: "bakery", label: "Bakery" },
+  { value: "dairy", label: "Dairy" },
+  { value: "produce", label: "Produce" },
+  { value: "prepared", label: "Prepared Meals" },
+  { value: "pantry", label: "Packaged Goods" },
   { value: "beverages", label: "Beverages" },
-  { value: "other",     label: "Other" },
+  { value: "other", label: "Other" },
 ];
 
 const emptyForm = {
@@ -61,8 +62,26 @@ export function ListDonationDialog({
     }
 
     setSaving(true);
-    toast({ title: "Error saving donation", description: "Database is no longer available", variant: "destructive" });
-    setSaving(false);
+    try {
+      addDonation({
+        food_name: form.food_name.trim(),
+        category: form.category,
+        quantity: form.quantity.trim(),
+        expiry_date: expiryDate.toISOString(),
+        pickup_location: form.pickup_location.trim(),
+        description: form.description.trim(),
+        donor_id: user.id,
+      });
+      toast({ title: "Donation listed! 🎉", description: `${form.food_name} is now available for recipients.` });
+      setForm(emptyForm);
+      setExpiryDate(undefined);
+      setOpen(false);
+      onSuccess?.();
+    } catch (err) {
+      toast({ title: "Error saving donation", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
