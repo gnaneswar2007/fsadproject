@@ -312,7 +312,7 @@ function RecipientDashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Available Now" value={String(available.length)} subtitle="Open donations" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="Available Now" value={String(available.length)} subtitle="Open donations" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/active-listings")} />
         <StatCard title="My Claims" value={String(totalClaimed)} subtitle="This session" icon={HandHeart} variant="secondary" onClick={() => navigate("/dashboard/my-claims")} />
         <StatCard title="Expiring Soon" value={String(available.filter((d) => daysUntil(d.expiry_date) <= 2).length)} subtitle="Within 2 days" icon={Clock} variant="accent" onClick={() => navigate("/dashboard/expiring-soon")} />
         <StatCard title="Categories" value={String(new Set(available.map((d) => d.category)).size)} subtitle="Types available" icon={Package} onClick={() => navigate("/dashboard/categories")} />

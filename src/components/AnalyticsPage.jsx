@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/StatCard";
 import { cn } from "@/lib/utils";
@@ -6,6 +7,7 @@ import {
   BarChart3, RefreshCw, Gift, CheckCircle2,
   Package, TrendingDown, Clock, Loader2,
 } from "lucide-react";
+import { getDonations } from "@/lib/mock-db";
 
 function LoadingSpinner() {
   return (
@@ -23,35 +25,36 @@ const catOrder = ["produce", "bakery", "dairy", "prepared", "pantry", "beverages
 
 const statusList = [
   { label: "Available", key: "available", cls: "bg-success/10 text-success border-success/30" },
-  { label: "Claimed",   key: "claimed",   cls: "bg-info/10 text-info border-info/30" },
+  { label: "Claimed", key: "claimed", cls: "bg-info/10 text-info border-info/30" },
   { label: "Picked Up", key: "picked_up", cls: "bg-primary/10 text-primary border-primary/30" },
-  { label: "Expired",   key: "expired",   cls: "bg-destructive/10 text-destructive border-destructive/30" },
+  { label: "Expired", key: "expired", cls: "bg-destructive/10 text-destructive border-destructive/30" },
   { label: "Cancelled", key: "cancelled", cls: "bg-muted text-muted-foreground border-border" },
 ];
 
 export function AnalyticsPage() {
+  const navigate = useNavigate();
   const [donations, setDonations] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    setDonations([]);
+    setDonations(getDonations());
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
   // Aggregations
-  const total       = donations.length;
-  const claimed     = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
-  const expired     = donations.filter((d) => d.status === "expired").length;
-  const available   = donations.filter((d) => d.status === "available").length;
+  const total = donations.length;
+  const claimed = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
+  const expired = donations.filter((d) => d.status === "expired").length;
+  const available = donations.filter((d) => d.status === "available").length;
   const successRate = total > 0 ? Math.round((claimed / total) * 100) : 0;
-  const wasteRate   = total > 0 ? Math.round((expired / total) * 100) : 0;
+  const wasteRate = total > 0 ? Math.round((expired / total) * 100) : 0;
 
   // Category counts
   const catCounts = catOrder.reduce((acc, c) => { acc[c] = donations.filter((d) => d.category === c).length; return acc; }, {});
-  const maxCat    = Math.max(...Object.values(catCounts), 1);
+  const maxCat = Math.max(...Object.values(catCounts), 1);
 
   // 6-month trend
   const now = new Date();
@@ -61,7 +64,7 @@ export function AnalyticsPage() {
   });
   const monthlyData = months.map(({ label, year, month }) => ({
     label,
-    total:   donations.filter((d) => { const dd = new Date(d.created_at); return dd.getFullYear() === year && dd.getMonth() === month; }).length,
+    total: donations.filter((d) => { const dd = new Date(d.created_at); return dd.getFullYear() === year && dd.getMonth() === month; }).length,
     claimed: donations.filter((d) => {
       const dd = new Date(d.created_at);
       return dd.getFullYear() === year && dd.getMonth() === month && ["claimed", "picked_up"].includes(d.status);
@@ -84,10 +87,10 @@ export function AnalyticsPage() {
   const insightMsg = successRate >= 70
     ? `Excellent! ${successRate}% of donations are claimed. Platform is performing well.`
     : successRate >= 40
-    ? `${successRate}% claim rate. Notify recipient organizations earlier to boost pickups.`
-    : total === 0
-    ? "No donations recorded yet. Data will appear once donors list food."
-    : `${successRate}% claim rate — consider sending alerts to recipients when new items are listed.`;
+      ? `${successRate}% claim rate. Notify recipient organizations earlier to boost pickups.`
+      : total === 0
+        ? "No donations recorded yet. Data will appear once donors list food."
+        : `${successRate}% claim rate — consider sending alerts to recipients when new items are listed.`;
 
   return (
     <div className="space-y-8">
@@ -105,10 +108,10 @@ export function AnalyticsPage() {
         <>
           {/* KPI row */}
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Donations"  value={String(total)}         subtitle="All time"              icon={Gift}         variant="primary"   />
-            <StatCard title="Claim Rate"        value={`${successRate}%`}     subtitle="Claimed before expiry" icon={CheckCircle2} variant="secondary" trend={{ value: claimed > 0 ? `${claimed} claimed` : "None yet", positive: claimed > 0 }} />
-            <StatCard title="Available Now"     value={String(available)}     subtitle="Open listings"         icon={Package}      variant="accent"    />
-            <StatCard title="Waste Rate"        value={`${wasteRate}%`}       subtitle="Expired unclaimed"     icon={TrendingDown} trend={{ value: expired > 0 ? `${expired} expired` : "None!", positive: expired === 0 }} />
+            <StatCard title="Total Donations" value={String(total)} subtitle="All time" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
+            <StatCard title="Claim Rate" value={`${successRate}%`} subtitle="Claimed before expiry" icon={CheckCircle2} variant="secondary" trend={{ value: claimed > 0 ? `${claimed} claimed` : "None yet", positive: claimed > 0 }} />
+            <StatCard title="Available Now" value={String(available)} subtitle="Open listings" icon={Package} variant="accent" onClick={() => navigate("/dashboard/active-listings")} />
+            <StatCard title="Waste Rate" value={`${wasteRate}%`} subtitle="Expired unclaimed" icon={TrendingDown} trend={{ value: expired > 0 ? `${expired} expired` : "None!", positive: expired === 0 }} />
           </div>
 
           {/* Charts row */}

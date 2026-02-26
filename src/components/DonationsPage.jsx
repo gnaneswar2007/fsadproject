@@ -26,8 +26,12 @@ export function DonationsPage() {
   const fetchDonations = async () => {
     if (!user) return;
     setLoading(true);
-    // Admin sees all donations; everyone else sees only their own
-    setDonations(role === "admin" ? getDonations() : getDonationsByUser(user.id));
+    // Show all donations for admin/analyst; only their own for donors
+    if (role === "admin" || role === "analyst") {
+      setDonations(getDonations());
+    } else {
+      setDonations(getDonationsByUser(user.id));
+    }
     setLoading(false);
   };
 
@@ -45,8 +49,8 @@ export function DonationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{role === "admin" ? "All Donations" : "My Donations"}</h1>
-          <p className="text-sm text-muted-foreground">{role === "admin" ? "View all donations on the platform" : "List and manage your food donations"}</p>
+          <h1 className="text-2xl font-bold text-foreground">{role === "admin" || role === "analyst" ? "All Donations" : "My Donations"}</h1>
+          <p className="text-sm text-muted-foreground">{role === "admin" || role === "analyst" ? "View all donations on the platform" : "List and manage your food donations"}</p>
         </div>
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "analyst") && <ExportMenu data={donations} filename="donations" pdfTitle="Donations Report" />}
