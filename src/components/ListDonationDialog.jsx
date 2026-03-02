@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Plus } from "lucide-react";
+import { CalendarIcon, Loader2, Phone, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,7 @@ const emptyForm = {
   category: "produce",
   quantity: "",
   pickup_location: "",
+  donor_phone: "",
   description: "",
 };
 
@@ -56,13 +57,17 @@ export function ListDonationDialog({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user || !expiryDate) return;
-    if (!form.food_name.trim() || !form.quantity.trim() || !form.pickup_location.trim()) {
+    if (!form.food_name.trim() || !form.quantity.trim() || !form.pickup_location.trim() || !form.donor_phone.trim()) {
       toast({ title: "Missing fields", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
 
     setSaving(true);
     try {
+      // Read the donor's full name from the auth profile stored in localStorage
+      const storedAuth = localStorage.getItem("mock_auth_user");
+      const donorName = storedAuth ? (JSON.parse(storedAuth).profile?.full_name || user.email) : user.email;
+
       addDonation({
         food_name: form.food_name.trim(),
         category: form.category,
@@ -71,6 +76,8 @@ export function ListDonationDialog({
         pickup_location: form.pickup_location.trim(),
         description: form.description.trim(),
         donor_id: user.id,
+        donor_name: donorName,
+        donor_phone: form.donor_phone.trim(),
       });
       toast({ title: "Donation listed! 🎉", description: `${form.food_name} is now available for recipients.` });
       setForm(emptyForm);
@@ -176,6 +183,24 @@ export function ListDonationDialog({
               maxLength={200}
               required
             />
+          </div>
+
+          {/* Donor phone number */}
+          <div className="space-y-1.5">
+            <Label htmlFor="ld-donor_phone">Phone Number *</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="ld-donor_phone"
+                type="tel"
+                placeholder="e.g. +91 9876543210"
+                value={form.donor_phone}
+                onChange={set("donor_phone")}
+                maxLength={15}
+                className="pl-9"
+                required
+              />
+            </div>
           </div>
 
           {/* Description */}

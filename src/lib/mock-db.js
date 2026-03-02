@@ -39,7 +39,7 @@ export function getDonationById(id) {
 }
 
 /** Add a new donation. Returns the created donation object. */
-export function addDonation({ food_name, category, quantity, expiry_date, pickup_location, description, donor_id }) {
+export function addDonation({ food_name, category, quantity, expiry_date, pickup_location, description, donor_id, donor_name, donor_phone }) {
   const donations = getDonations();
   const donation = {
     id: `don-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -50,6 +50,8 @@ export function addDonation({ food_name, category, quantity, expiry_date, pickup
     pickup_location,
     description: description || "",
     donor_id,
+    donor_name: donor_name || "",
+    donor_phone: donor_phone || "",
     status: "available",
     created_at: new Date().toISOString(),
   };

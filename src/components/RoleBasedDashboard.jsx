@@ -11,7 +11,7 @@ import {
   Gift, Package, TrendingDown, Users,
   BarChart3, ShieldCheck, ClipboardList,
   CheckCircle2, Clock, Loader2, MapPin, CalendarIcon, Trash2,
-  RefreshCw, HandHeart,
+  RefreshCw, HandHeart, Phone,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -353,6 +353,13 @@ function RecipientDashboard() {
                   <div className="flex items-center gap-1.5"><Package className="h-3 w-3" />{d.quantity}</div>
                   <div className="flex items-center gap-1.5"><CalendarIcon className="h-3 w-3" />Expires {format(new Date(d.expiry_date), "MMM d, yyyy")}</div>
                   <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /><span className="truncate">{d.pickup_location}</span></div>
+                  {d.donor_phone && (
+                    <div className="flex items-center gap-1.5 mt-1 text-xs font-medium text-primary">
+                      <Phone className="h-3 w-3" />
+                      <a href={`tel:${d.donor_phone}`} className="hover:underline">{d.donor_phone}</a>
+                      <span className="text-muted-foreground font-normal">— Donor</span>
+                    </div>
+                  )}
                 </div>
                 {d.description && <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{d.description}</p>}
                 <Button

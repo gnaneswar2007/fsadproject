@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
     HandHeart, Loader2, RefreshCw, ArrowLeft, Package,
-    CalendarIcon, MapPin, CheckCircle2, Clock, Truck,
+    CalendarIcon, MapPin, CheckCircle2, Clock, Truck, Phone,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,6 +126,13 @@ export function MyClaimsPage() {
                                         <div className="flex items-center gap-1.5"><Package className="h-3 w-3" />{d.quantity}</div>
                                         <div className="flex items-center gap-1.5"><CalendarIcon className="h-3 w-3" />Expires {format(new Date(d.expiry_date), "MMM d, yyyy")}</div>
                                         <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /><span className="truncate">{d.pickup_location}</span></div>
+                                        {d.donor_phone && (
+                                            <div className="flex items-center gap-1.5 mt-1 text-xs font-medium text-primary">
+                                                <Phone className="h-3 w-3" />
+                                                <a href={`tel:${d.donor_phone}`} className="hover:underline">{d.donor_phone}</a>
+                                                <span className="text-muted-foreground font-normal">— Donor</span>
+                                            </div>
+                                        )}
                                     </div>
                                     {d.status === "claimed" && (
                                         <Button size="sm" className="mt-3 w-full h-8 text-xs" onClick={() => handleMarkPickedUp(d)}>
