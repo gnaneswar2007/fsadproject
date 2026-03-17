@@ -54,7 +54,7 @@ export function DonationsPage() {
         </div>
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "analyst") && <ExportMenu data={donations} filename="donations" pdfTitle="Donations Report" />}
-          {role !== "admin" && <ListDonationDialog onSuccess={fetchDonations} triggerLabel="New Donation" />}
+          {role !== "admin" && role !== "analyst" && <ListDonationDialog onSuccess={fetchDonations} triggerLabel="New Donation" />}
         </div>
       </div>
 
