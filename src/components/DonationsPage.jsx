@@ -79,12 +79,14 @@ export function DonationsPage() {
                 <Badge variant="outline" className={cn("text-xs capitalize", statusColors[d.status])}>
                   {d.status.replace("_", " ")}
                 </Badge>
-                <button
-                  onClick={() => handleDelete(d.id)}
-                  className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {role !== "analyst" && (
+                  <button
+                    onClick={() => handleDelete(d.id)}
+                    className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <h3 className="text-base font-semibold text-foreground">{d.food_name}</h3>
               <p className="mt-0.5 text-xs capitalize text-muted-foreground">{d.category}</p>

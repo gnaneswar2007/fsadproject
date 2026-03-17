@@ -198,7 +198,12 @@ function DonorDashboard() {
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Donor Dashboard</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage your food donations and track impact</p>
         </div>
-        <ListDonationDialog onSuccess={fetchDonations} triggerLabel="List Surplus Food" />
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={fetchDonations}>
+            <RefreshCw className="mr-2 h-4 w-4" />Refresh
+          </Button>
+          <ListDonationDialog onSuccess={fetchDonations} triggerLabel="List Surplus Food" />
+        </div>
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
