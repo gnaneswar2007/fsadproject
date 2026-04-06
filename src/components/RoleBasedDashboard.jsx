@@ -203,7 +203,7 @@ function DonorDashboard() {
 
   const total = donations.length;
   const claimed = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
-  const available = donations.filter((d) => d.status === "available").length;
+  const available = donations.filter((d) => ["available", "claimed"].includes(d.status)).length;
 
   return (
     <div className="space-y-8">
@@ -222,7 +222,7 @@ function DonorDashboard() {
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard title="My Donations" value={String(total)} subtitle="Total listed" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
-        <StatCard title="Active Listings" value={String(available)} subtitle="Available now" icon={Package} variant="secondary" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="Active Listings" value={String(available)} subtitle="Available or claimed" icon={Package} variant="secondary" onClick={() => navigate("/dashboard/donations")} />
         <StatCard title="Claims Made" value={String(claimed)} subtitle="By organizations" icon={CheckCircle2} variant="accent" onClick={() => navigate("/dashboard/donations?view=claims")} />
         <StatCard title="Waste Avoided" value={total > 0 ? `~${Math.round(total * 2.3)} kg` : "—"} subtitle="Est. food saved" icon={TrendingDown} onClick={() => navigate("/dashboard/waste-avoided")} />
       </div>
