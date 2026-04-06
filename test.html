@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Test</title>
+</head>
+<body>
+    <h1 style="color: red; font-size: 50px;">DIRECT HTML TEST - Can you see this?</h1>
+    <script>
+        fetch('http://localhost:8081/')
+            .then(r => r.text())
+            .then(html => {
+                console.log('HTML received:', html.substring(0, 500));
+            })
+            .catch(e => console.error('Fetch error:', e));
+    </script>
+</body>
+</html>
