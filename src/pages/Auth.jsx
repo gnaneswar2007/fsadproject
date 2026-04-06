@@ -176,7 +176,7 @@ export default function Auth() {
         form.password,
         effectiveRole,
         form.fullName,
-        form.organizationName || undefined
+        effectiveRole === "recipient" ? form.organizationName || undefined : undefined
       );
       if (error) {
         toast({ title: "Registration failed", description: error.message, variant: "destructive" });
@@ -441,7 +441,7 @@ export default function Auth() {
                   />
                 </div>
 
-                {(selectedRole === "recipient" || selectedRole === "analyst") && (
+                {selectedRole === "recipient" && (
                   <div className="space-y-1.5">
                     <Label htmlFor="organizationName">Organization Name</Label>
                     <Input
