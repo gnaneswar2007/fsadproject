@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import {
-  getDonations, getDonationsByUser, getAvailableDonations,
+  getDonations, getDonationsByUser,
   deleteDonation, updateDonationStatus, getUsers,
 } from "@/lib/mock-db";
 
@@ -72,6 +72,18 @@ function AdminDashboard() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      load();
+    };
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -169,6 +181,7 @@ function AdminDashboard() {
 // ─── Donor Dashboard ─────────────────────────────────────────────────────────
 function DonorDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -197,13 +210,22 @@ function DonorDashboard() {
   }, [user]);
 
   const handleDelete = async (id) => {
-    await deleteDonation(id);
-    setDonations((prev) => prev.filter((d) => d.id !== id));
+    try {
+      await deleteDonation(id);
+      setDonations((prev) => prev.filter((d) => d.id !== id));
+      toast({ title: "Deleted", description: "Donation removed successfully." });
+    } catch (error) {
+      toast({
+        title: "Delete failed",
+        description: error?.message || "Could not delete donation. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const total = donations.length;
   const claimed = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;
-  const available = donations.filter((d) => ["available", "claimed"].includes(d.status)).length;
+  const available = donations.filter((d) => ["available", "claimed", "picked_up"].includes(d.status)).length;
 
   return (
     <div className="space-y-8">
@@ -222,7 +244,7 @@ function DonorDashboard() {
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard title="My Donations" value={String(total)} subtitle="Total listed" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/donations")} />
-        <StatCard title="Active Listings" value={String(available)} subtitle="Available or claimed" icon={Package} variant="secondary" onClick={() => navigate("/dashboard/donations")} />
+        <StatCard title="Active Listings" value={String(available)} subtitle="Available, claimed or picked up" icon={Package} variant="secondary" onClick={() => navigate("/dashboard/donations")} />
         <StatCard title="Claims Made" value={String(claimed)} subtitle="By organizations" icon={CheckCircle2} variant="accent" onClick={() => navigate("/dashboard/donations?view=claims")} />
         <StatCard title="Waste Avoided" value={total > 0 ? `~${Math.round(total * 2.3)} kg` : "—"} subtitle="Est. food saved" icon={TrendingDown} onClick={() => navigate("/dashboard/waste-avoided")} />
       </div>
@@ -281,31 +303,74 @@ function DonorDashboard() {
 function RecipientDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [available, setAvailable] = useState([]);
+  const [visibleDonations, setVisibleDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(null);
   const [claimedIds, setClaimedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("claimed_donations") || "[]"); } catch { return []; }
+    try {
+      const ids = JSON.parse(localStorage.getItem("claimed_donations") || "[]");
+      return Array.from(new Set((ids || []).map((id) => String(id))));
+    } catch {
+      return [];
+    }
   });
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   const fetchDonations = async () => {
     setLoading(true);
-    setAvailable(await getAvailableDonations());
+    let storedClaimedIds = [];
+    try {
+      storedClaimedIds = Array.from(new Set((JSON.parse(localStorage.getItem("claimed_donations") || "[]") || []).map((id) => String(id))));
+    } catch {
+      storedClaimedIds = [];
+    }
+
+    const allDonations = await getDonations();
+    const claimableStatuses = new Set(["claimed", "picked_up"]);
+    const validClaimedIds = new Set(
+      allDonations
+        .filter((d) => claimableStatuses.has(d.status))
+        .map((d) => String(d.id))
+    );
+
+    const nextClaimedIds = storedClaimedIds.filter((id) => validClaimedIds.has(id));
+    localStorage.setItem("claimed_donations", JSON.stringify(nextClaimedIds));
+    setClaimedIds(nextClaimedIds);
+
+    const claimedSet = new Set(nextClaimedIds);
+    setVisibleDonations(
+      allDonations.filter((d) => d.status === "available" || claimedSet.has(String(d.id)))
+    );
+
     setLoading(false);
   };
 
   useEffect(() => { fetchDonations(); }, []);
 
+  useEffect(() => {
+    const refresh = () => {
+      fetchDonations();
+    };
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+
   const handleClaim = async (donation) => {
     setClaiming(donation.id);
-    await updateDonationStatus(donation.id, "claimed");
-    const next = [...claimedIds, donation.id];
-    setClaimedIds(next);
-    localStorage.setItem("claimed_donations", JSON.stringify(next));
-    setAvailable((prev) => prev.filter((d) => d.id !== donation.id));
-    toast({ title: "Claimed! 🎉", description: `${donation.food_name} has been reserved for pickup.` });
-    setClaiming(null);
+    try {
+      await updateDonationStatus(donation.id, "claimed");
+      const next = Array.from(new Set([...claimedIds.map((id) => String(id)), String(donation.id)]));
+      setClaimedIds(next);
+      localStorage.setItem("claimed_donations", JSON.stringify(next));
+      await fetchDonations();
+      toast({ title: "Claimed! 🎉", description: `${donation.food_name} has been reserved for pickup.` });
+    } finally {
+      setClaiming(null);
+    }
   };
 
   const daysUntil = (dateStr) => Math.ceil((new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24));
@@ -314,8 +379,8 @@ function RecipientDashboard() {
       : days <= 3 ? "bg-warning/10 text-warning border-warning/30"
         : "bg-success/10 text-success border-success/30";
 
-  const categories = ["all", ...new Set(available.map((d) => d.category))];
-  const filtered = categoryFilter === "all" ? available : available.filter((d) => d.category === categoryFilter);
+  const categories = ["all", ...new Set(visibleDonations.map((d) => d.category))];
+  const filtered = categoryFilter === "all" ? visibleDonations : visibleDonations.filter((d) => d.category === categoryFilter);
   const totalClaimed = claimedIds.length;
 
   return (
@@ -331,10 +396,10 @@ function RecipientDashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Available Now" value={String(available.length)} subtitle="Open donations" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/active-listings")} />
-        <StatCard title="My Claims" value={String(totalClaimed)} subtitle="This session" icon={HandHeart} variant="secondary" onClick={() => navigate("/dashboard/my-claims")} />
-        <StatCard title="Expiring Soon" value={String(available.filter((d) => daysUntil(d.expiry_date) <= 2).length)} subtitle="Within 2 days" icon={Clock} variant="accent" onClick={() => navigate("/dashboard/expiring-soon")} />
-        <StatCard title="Categories" value={String(new Set(available.map((d) => d.category)).size)} subtitle="Types available" icon={Package} onClick={() => navigate("/dashboard/categories")} />
+        <StatCard title="Available Now" value={String(visibleDonations.filter((d) => d.status === "available").length)} subtitle="Open listings" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/active-listings")} />
+        <StatCard title="My Claims" value={String(totalClaimed)} subtitle="Claimed or picked up" icon={HandHeart} variant="secondary" onClick={() => navigate("/dashboard/my-claims")} />
+        <StatCard title="Expiring Soon" value={String(visibleDonations.filter((d) => daysUntil(d.expiry_date) <= 3).length)} subtitle="Within 3 days" icon={Clock} variant="accent" onClick={() => navigate("/dashboard/expiring-soon")} />
+        <StatCard title="Categories" value={String(new Set(visibleDonations.map((d) => d.category)).size)} subtitle="Types in this view" icon={Package} onClick={() => navigate("/dashboard/categories")} />
       </div>
 
       {/* Category filter pills */}
@@ -353,18 +418,24 @@ function RecipientDashboard() {
       </div>
 
       {loading ? <LoadingSpinner /> : filtered.length === 0 ? (
-        <EmptyState icon={Gift} color="text-accent" title="No donations available" subtitle="Check back soon — donors are listing new items regularly." />
+        <EmptyState icon={Gift} color="text-accent" title="No donations in this view" subtitle="Check back soon — donors are listing new items regularly." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((d) => {
             const days = daysUntil(d.expiry_date);
             const isClaiming = claiming === d.id;
+            const isClaimable = d.status === "available";
             return (
               <div key={d.id} className="group rounded-xl border bg-card p-4 shadow-soft transition-all hover:shadow-medium">
                 <div className="mb-2 flex items-start justify-between gap-2">
-                  <Badge variant="outline" className={cn("text-xs capitalize shrink-0", urgencyClass(days))}>
-                    {days <= 0 ? "Expired" : days === 1 ? "Today" : `${days}d left`}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className={cn("text-xs capitalize shrink-0", urgencyClass(days))}>
+                      {days <= 0 ? "Expired" : days === 1 ? "Today" : `${days}d left`}
+                    </Badge>
+                    <Badge variant="outline" className={cn("text-xs capitalize", donationStatusColors[d.status] || "bg-muted text-muted-foreground")}>
+                      {d.status.replace("_", " ")}
+                    </Badge>
+                  </div>
                   <span className="text-xs capitalize text-muted-foreground">{d.category}</span>
                 </div>
                 <p className="text-sm font-semibold text-foreground">{d.food_name}</p>
@@ -381,15 +452,21 @@ function RecipientDashboard() {
                   )}
                 </div>
                 {d.description && <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{d.description}</p>}
-                <Button
-                  size="sm" className="mt-3 w-full h-8 text-xs"
-                  disabled={isClaiming}
-                  onClick={() => handleClaim(d)}
-                >
-                  {isClaiming
-                    ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Claiming...</>
-                    : <><HandHeart className="mr-2 h-3 w-3" />Claim This Donation</>}
-                </Button>
+                {isClaimable ? (
+                  <Button
+                    size="sm" className="mt-3 w-full h-8 text-xs"
+                    disabled={isClaiming}
+                    onClick={() => handleClaim(d)}
+                  >
+                    {isClaiming
+                      ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Claiming...</>
+                      : <><HandHeart className="mr-2 h-3 w-3" />Claim This Donation</>}
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" className="mt-3 w-full h-8 text-xs" disabled>
+                    {d.status === "picked_up" ? "Picked Up" : "Already Claimed"}
+                  </Button>
+                )}
               </div>
             );
           })}
@@ -400,7 +477,7 @@ function RecipientDashboard() {
         <div className="rounded-xl border bg-accent/5 border-accent/20 p-5">
           <h3 className="font-semibold text-foreground mb-1">🤝 Thank You!</h3>
           <p className="text-sm text-muted-foreground">
-            You've claimed <strong className="text-foreground">{totalClaimed}</strong> donation{totalClaimed !== 1 ? "s" : ""} this session.{" "}
+            You've claimed <strong className="text-foreground">{totalClaimed}</strong> donation{totalClaimed !== 1 ? "s" : ""}.{" "}
             Please coordinate pickup with the donor at the listed location.
           </p>
         </div>
@@ -422,6 +499,18 @@ function AnalystDashboard() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      load();
+    };
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
 
   const total = donations.length;
   const claimed = donations.filter((d) => ["claimed", "picked_up"].includes(d.status)).length;

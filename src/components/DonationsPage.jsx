@@ -59,9 +59,17 @@ export function DonationsPage() {
   }, [user, role, showClaimedOnly]);
 
   const handleDelete = async (id) => {
-    await deleteDonation(id);
-    setDonations((prev) => prev.filter((d) => d.id !== id));
-    toast({ title: "Deleted", description: "Donation removed successfully." });
+    try {
+      await deleteDonation(id);
+      setDonations((prev) => prev.filter((d) => d.id !== id));
+      toast({ title: "Deleted", description: "Donation removed successfully." });
+    } catch (err) {
+      toast({
+        title: "Delete failed",
+        description: err?.message || "Could not delete donation. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -108,7 +116,7 @@ export function DonationsPage() {
                 <Badge variant="outline" className={cn("text-xs capitalize", statusColors[d.status])}>
                   {d.status.replace("_", " ")}
                 </Badge>
-                {role !== "analyst" && (
+                {role === "admin" && (
                   <button
                     onClick={() => handleDelete(d.id)}
                     className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"

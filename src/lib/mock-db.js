@@ -2,6 +2,8 @@ import { apiRequest } from "@/lib/api";
 
 const DONATIONS_CACHE_KEY = "api_donations_cache";
 const STATUS_OVERRIDES_KEY = "donation_status_overrides";
+const DELETED_DONATION_IDS_KEY = "deleted_donation_ids";
+const DELETED_DONATION_KEYS_KEY = "deleted_donation_keys";
 const USERS_KEY = "mock_users";
 const AUTH_KEY = "mock_auth_user";
 
@@ -56,6 +58,11 @@ function toLocalDateTimeString(isoValue) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
 
+function isNetworkError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error instanceof TypeError || message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
+}
+
 function applyStatusOverrides(donations) {
   const overrides = readStore(STATUS_OVERRIDES_KEY, {});
   return donations.map((d) => ({
@@ -64,10 +71,68 @@ function applyStatusOverrides(donations) {
   }));
 }
 
+function getDeletedDonationIds() {
+  return new Set((readStore(DELETED_DONATION_IDS_KEY, []) || []).map((id) => String(id)));
+}
+
+function donationKey(donation) {
+  if (!donation) return "";
+  return [
+    String(donation.donor_id || donation.donorEmail || ""),
+    String(donation.food_name || donation.foodName || ""),
+    String(donation.quantity || ""),
+    String(donation.expiry_date || donation.expiryDate || ""),
+    String(donation.pickup_location || donation.pickupLocation || ""),
+  ].join("|");
+}
+
+function getDeletedDonationKeys() {
+  return new Set((readStore(DELETED_DONATION_KEYS_KEY, []) || []).map((k) => String(k)));
+}
+
+function filterDeletedDonations(donations) {
+  const deletedIds = getDeletedDonationIds();
+  const deletedKeys = getDeletedDonationKeys();
+  if (deletedIds.size === 0 && deletedKeys.size === 0) return donations;
+  return donations.filter((d) => !deletedIds.has(String(d.id)) && !deletedKeys.has(donationKey(d)));
+}
+
+function rememberDeletedDonation(id, donation) {
+  const deletedIds = getDeletedDonationIds();
+  deletedIds.add(String(id));
+  writeStore(DELETED_DONATION_IDS_KEY, Array.from(deletedIds));
+
+  const key = donationKey(donation);
+  if (key) {
+    const deletedKeys = getDeletedDonationKeys();
+    deletedKeys.add(key);
+    writeStore(DELETED_DONATION_KEYS_KEY, Array.from(deletedKeys));
+  }
+}
+
+function forgetDeletedDonation(id, donation) {
+  const deletedIds = getDeletedDonationIds();
+  const key = String(id);
+  if (deletedIds.has(key)) {
+    deletedIds.delete(key);
+    writeStore(DELETED_DONATION_IDS_KEY, Array.from(deletedIds));
+  }
+
+  const donationFingerprint = donationKey(donation);
+  if (donationFingerprint) {
+    const deletedKeys = getDeletedDonationKeys();
+    if (deletedKeys.has(donationFingerprint)) {
+      deletedKeys.delete(donationFingerprint);
+      writeStore(DELETED_DONATION_KEYS_KEY, Array.from(deletedKeys));
+    }
+  }
+}
+
 export async function getDonations() {
   const email = readAuthEmail();
   const role = readAuthRole();
-  if (!email) return readStore(DONATIONS_CACHE_KEY, []);
+  const cached = readStore(DONATIONS_CACHE_KEY, []);
+  if (!email) return cached;
 
   const emails = new Set([email]);
   const users = getUsers();
@@ -89,28 +154,35 @@ export async function getDonations() {
     });
   }
 
-  // Fallback: preserve previously seen donor emails so recipient feed stays populated.
-  const cached = readStore(DONATIONS_CACHE_KEY, []);
-  cached.forEach((d) => {
-    const donorEmail = d?.donor_id;
-    if (donorEmail && String(donorEmail).includes("@")) {
-      emails.add(donorEmail);
-    }
-  });
+  // Preserve previously seen donor emails only for recipient browse continuity.
+  if (role === "recipient") {
+    cached.forEach((d) => {
+      const donorEmail = d?.donor_id;
+      if (donorEmail && String(donorEmail).includes("@")) {
+        emails.add(donorEmail);
+      }
+    });
+  }
 
   const all = [];
-  await Promise.all(
-    Array.from(emails).map(async (donorEmail) => {
-      const data = await apiRequest(`/api/donations?donorEmail=${encodeURIComponent(donorEmail)}`);
-      (data || []).forEach((item) => all.push(item));
-    })
-  );
+  try {
+    await Promise.all(
+      Array.from(emails).map(async (donorEmail) => {
+        const data = await apiRequest(`/donations?donorEmail=${encodeURIComponent(donorEmail)}`);
+        (data || []).forEach((item) => all.push(item));
+      })
+    );
+  } catch {
+    // On network failure, return cached donations with status overrides applied
+    return filterDeletedDonations(applyStatusOverrides(cached));
+  }
 
   const byId = new Map();
   all.forEach((item) => byId.set(item.id, item));
   const normalized = applyStatusOverrides(Array.from(byId.values()).map(normalizeDonation));
-  writeStore(DONATIONS_CACHE_KEY, normalized);
-  return normalized;
+  const visible = filterDeletedDonations(normalized);
+  writeStore(DONATIONS_CACHE_KEY, visible);
+  return visible;
 }
 
 export async function getDonationsByUser(userId) {
@@ -118,10 +190,15 @@ export async function getDonationsByUser(userId) {
   const email = userId?.includes?.("@") ? userId : auth?.user?.email || null;
   if (!email) return [];
 
-  const data = await apiRequest(`/api/donations?donorEmail=${encodeURIComponent(email)}`);
-  const normalized = applyStatusOverrides((data || []).map(normalizeDonation));
-  writeStore(DONATIONS_CACHE_KEY, normalized);
-  return normalized;
+  try {
+    const data = await apiRequest(`/donations?donorEmail=${encodeURIComponent(email)}`);
+    const normalized = applyStatusOverrides((data || []).map(normalizeDonation));
+    const visible = filterDeletedDonations(normalized);
+    writeStore(DONATIONS_CACHE_KEY, visible);
+    return visible;
+  } catch {
+    return filterDeletedDonations(readStore(DONATIONS_CACHE_KEY, []) || []).filter((d) => String(d.donor_id) === String(email));
+  }
 }
 
 export async function getAvailableDonations() {
@@ -148,21 +225,57 @@ export async function addDonation({
     throw new Error("Please sign in before creating a donation");
   }
 
-  const created = await apiRequest("/api/donations", {
-    method: "POST",
-    body: {
-      donor_email: donorEmail,
+  let normalized;
+  try {
+    const created = await apiRequest("/donations", {
+      method: "POST",
+      body: {
+        donor_email: donorEmail,
+        food_name,
+        category,
+        quantity,
+        pickup_location,
+        phone_number: donor_phone,
+        description: description || "",
+        expiry_date: toLocalDateTimeString(expiry_date),
+      },
+    });
+    normalized = normalizeDonation(created);
+  } catch (error) {
+    if (!isNetworkError(error)) throw error;
+
+    // Allow local-only listing when backend is unreachable.
+    normalized = {
+      id: `local-${Date.now()}`,
       food_name,
       category,
       quantity,
-      pickup_location,
-      phone_number: donor_phone,
-      description: description || "",
       expiry_date: toLocalDateTimeString(expiry_date),
-    },
-  });
+      pickup_location,
+      description: description || "",
+      donor_id: donorEmail,
+      donor_name: donorEmail,
+      donor_phone: donor_phone || "",
+      status: "available",
+      created_at: new Date().toISOString(),
+    };
+  }
 
-  const normalized = normalizeDonation(created);
+  forgetDeletedDonation(normalized.id, normalized);
+  
+  // Clear ALL status overrides to remove stale data, then protect only this new donation
+  const allCached = readStore(DONATIONS_CACHE_KEY, []);
+  const validIds = new Set(allCached.map((d) => String(d.id)));
+  
+  const allOverrides = readStore(STATUS_OVERRIDES_KEY, {});
+  const cleanedOverrides = Object.keys(allOverrides)
+    .filter((key) => validIds.has(key) && key !== String(normalized.id))
+    .reduce((acc, key) => {
+      acc[key] = allOverrides[key];
+      return acc;
+    }, {});
+  writeStore(STATUS_OVERRIDES_KEY, cleanedOverrides);
+  
   const cached = readStore(DONATIONS_CACHE_KEY, []);
   const next = [normalized, ...cached];
   writeStore(DONATIONS_CACHE_KEY, next);
@@ -170,10 +283,48 @@ export async function addDonation({
 }
 
 export async function deleteDonation(id) {
-  await apiRequest(`/api/donations/${id}`, { method: "DELETE" });
+  const donorEmail = readAuthEmail();
+  const attempts = [
+    donorEmail ? `/donations/${id}?donorEmail=${encodeURIComponent(donorEmail)}` : null,
+    `/donations/${id}`,
+    donorEmail ? `/donations?id=${encodeURIComponent(String(id))}&donorEmail=${encodeURIComponent(donorEmail)}` : null,
+    `/donations?id=${encodeURIComponent(String(id))}`,
+  ].filter(Boolean);
+
+  let deletedRemotely = false;
+  let lastError = null;
+  let hadNetworkError = false;
+
+  for (const path of attempts) {
+    try {
+      await apiRequest(path, { method: "DELETE" });
+      deletedRemotely = true;
+      break;
+    } catch (error) {
+      lastError = error;
+      const msg = String(error?.message || "").toLowerCase();
+      if (error instanceof TypeError || msg.includes("failed to fetch")) {
+        hadNetworkError = true;
+      }
+    }
+  }
+
   const donations = readStore(DONATIONS_CACHE_KEY, []);
+  const deletedDonation = donations.find((d) => String(d.id) === String(id));
   const filtered = donations.filter((d) => String(d.id) !== String(id));
+
+  
+
   writeStore(DONATIONS_CACHE_KEY, filtered);
+  rememberDeletedDonation(id, deletedDonation);
+
+  const overrides = readStore(STATUS_OVERRIDES_KEY, {});
+  const key = String(id);
+  if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+    delete overrides[key];
+    writeStore(STATUS_OVERRIDES_KEY, overrides);
+  }
+
   return filtered.length < donations.length;
 }
 

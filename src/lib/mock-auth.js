@@ -107,7 +107,7 @@ function persistSession(email) {
 
 export async function signIn(email, password) {
   try {
-    await apiRequest("/api/auth/login", {
+    await apiRequest("/auth/login", {
       method: "POST",
       body: { email, password },
     });
@@ -124,7 +124,7 @@ export async function signUp(email, password, role, fullName, organizationName) 
   try {
     cacheRoleAndProfile(email, role, fullName, organizationName);
 
-    await apiRequest("/api/auth/register", {
+    await apiRequest("/auth/register", {
       method: "POST",
       body: {
         name: fullName,
@@ -149,7 +149,7 @@ export async function signUp(email, password, role, fullName, organizationName) 
 
 export async function verifySignupOtp(email, otp) {
   try {
-    await apiRequest("/api/auth/verify-otp", {
+    await apiRequest("/auth/verify-otp", {
       method: "POST",
       body: {
         email,
@@ -177,7 +177,7 @@ export async function verifySignupOtp(email, otp) {
 
 export async function resendSignupOtp(email) {
   try {
-    await apiRequest("/api/auth/resend-otp", {
+    await apiRequest("/auth/resend-otp", {
       method: "POST",
       body: {
         email,

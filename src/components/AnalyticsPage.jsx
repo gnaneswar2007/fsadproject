@@ -38,8 +38,13 @@ export function AnalyticsPage() {
 
   const load = async () => {
     setLoading(true);
-    setDonations(await getDonations());
-    setLoading(false);
+    try {
+      setDonations(await getDonations());
+    } catch {
+      setDonations([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);

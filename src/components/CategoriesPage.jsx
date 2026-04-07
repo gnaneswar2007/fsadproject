@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAvailableDonations, updateDonationStatus } from "@/lib/mock-db";
+import { getDonations, updateDonationStatus } from "@/lib/mock-db";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
@@ -32,7 +32,27 @@ export function CategoriesPage() {
 
     const load = async () => {
         setLoading(true);
-        setDonations(await getAvailableDonations());
+
+        let storedClaimedIds = [];
+        try {
+            storedClaimedIds = Array.from(new Set((JSON.parse(localStorage.getItem("claimed_donations") || "[]") || []).map((id) => String(id))));
+        } catch {
+            storedClaimedIds = [];
+        }
+
+        const allDonations = await getDonations();
+        const claimableStatuses = new Set(["claimed", "picked_up"]);
+        const validClaimedIds = new Set(
+            allDonations
+                .filter((d) => claimableStatuses.has(d.status))
+                .map((d) => String(d.id))
+        );
+
+        const nextClaimedIds = storedClaimedIds.filter((id) => validClaimedIds.has(id));
+        localStorage.setItem("claimed_donations", JSON.stringify(nextClaimedIds));
+
+        const claimedSet = new Set(nextClaimedIds);
+        setDonations(allDonations.filter((d) => d.status === "available" || claimedSet.has(String(d.id))));
         setLoading(false);
     };
 
