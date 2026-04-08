@@ -1,4 +1,9 @@
-import { apiRequest } from "@/lib/api";
+import {
+  loginRequest,
+  registerRequest,
+  resendOtpRequest,
+  verifyOtpRequest,
+} from "@/lib/api";
 import { upsertUser } from "@/lib/mock-db";
 
 const STORAGE_KEY = "mock_auth_user";
@@ -107,10 +112,7 @@ function persistSession(email) {
 
 export async function signIn(email, password) {
   try {
-    await apiRequest("/auth/login", {
-      method: "POST",
-      body: { email, password },
-    });
+    await loginRequest(email, password);
     return persistSession(email);
   } catch (err) {
     return {
@@ -124,13 +126,10 @@ export async function signUp(email, password, role, fullName, organizationName) 
   try {
     cacheRoleAndProfile(email, role, fullName, organizationName);
 
-    await apiRequest("/auth/register", {
-      method: "POST",
-      body: {
-        name: fullName,
-        email,
-        password,
-      },
+    await registerRequest({
+      name: fullName,
+      email,
+      password,
     });
 
     setPendingSignup(email, password);
@@ -149,13 +148,10 @@ export async function signUp(email, password, role, fullName, organizationName) 
 
 export async function verifySignupOtp(email, otp) {
   try {
-    await apiRequest("/auth/verify-otp", {
-      method: "POST",
-      body: {
-        email,
-        otp,
-        purpose: "REGISTER",
-      },
+    await verifyOtpRequest({
+      email,
+      otp,
+      purpose: "REGISTER",
     });
 
     const pending = getPendingSignup();
@@ -177,12 +173,9 @@ export async function verifySignupOtp(email, otp) {
 
 export async function resendSignupOtp(email) {
   try {
-    await apiRequest("/auth/resend-otp", {
-      method: "POST",
-      body: {
-        email,
-        purpose: "REGISTER",
-      },
+    await resendOtpRequest({
+      email,
+      purpose: "REGISTER",
     });
 
     return { data: { resent: true }, error: null };

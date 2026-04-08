@@ -60,7 +60,7 @@ function toLocalDateTimeString(isoValue) {
 
 function isNetworkError(error) {
   const message = String(error?.message || "").toLowerCase();
-  return error instanceof TypeError || message.includes("failed to fetch") || message.includes("networkerror") || message.includes("load failed");
+  return error instanceof TypeError || message.includes("failed to fetch") || message.includes("networkerror") || message.includes("network error") || message.includes("load failed");
 }
 
 function applyStatusOverrides(donations) {
