@@ -10,7 +10,7 @@ export default defineConfig({
       "/api": {
         target:
           process.env.VITE_API_PROXY_TARGET ||
-          "http://localhost:8080",
+          "https://fsadprojectbackend.onrender.com",
         changeOrigin: true,
         secure: false,
       },
