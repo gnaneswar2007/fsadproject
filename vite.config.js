@@ -8,9 +8,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "https://fsadprojectbackend-production-cc50.up.railway.app",
+        target:
+          process.env.VITE_API_PROXY_TARGET ||
+          "http://localhost:8080",
         changeOrigin: true,
-        secure: true,
+        secure: false,
       },
     },
   },
