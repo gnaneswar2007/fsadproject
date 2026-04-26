@@ -26,34 +26,31 @@ export function SettingsPage() {
   const [saving, setSaving]     = useState(false);
   const [saved, setSaved]       = useState(false);
 
-  // Load profile
   useEffect(() => {
     if (!user) return;
-    // Mock profile is stored in localStorage
     const stored = localStorage.getItem("mock_auth_user");
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setProfile({ 
-          full_name: parsed.profile?.full_name || "", 
-          organization_name: parsed.profile?.organization_name || "" 
+        setProfile({
+          full_name: parsed.profile?.full_name || "",
+          organization_name: role === "donor" ? "" : (parsed.profile?.organization_name || "")
         });
       } catch {}
     }
     setLoading(false);
-  }, [user]);
+  }, [user, role]);
 
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    // Update mock auth with new profile data
     try {
       const stored = localStorage.getItem("mock_auth_user");
       if (stored) {
         const parsed = JSON.parse(stored);
         parsed.profile = {
           full_name: profile.full_name,
-          organization_name: profile.organization_name
+          organization_name: role === "donor" ? "" : profile.organization_name
         };
         localStorage.setItem("mock_auth_user", JSON.stringify(parsed));
       }
@@ -73,6 +70,7 @@ export function SettingsPage() {
   };
 
   const info = roleInfo[role] || roleInfo.donor;
+  const showOrganizationField = role !== "donor";
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -81,7 +79,6 @@ export function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">Manage your profile and account preferences</p>
       </div>
 
-      {/* Account overview */}
       <div className="rounded-xl border bg-card p-5 shadow-soft">
         <div className="flex items-center gap-4">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
@@ -97,7 +94,6 @@ export function SettingsPage() {
         </div>
       </div>
 
-      {/* Role info */}
       <div className={cn("rounded-xl border p-5", info.color)}>
         <div className="flex items-center gap-2 mb-1">
           <Shield className="h-4 w-4" />
@@ -106,7 +102,6 @@ export function SettingsPage() {
         <p className="text-sm">{info.description}</p>
       </div>
 
-      {/* Profile form */}
       <div className="rounded-xl border bg-card p-5 shadow-soft">
         <h2 className="flex items-center gap-2 font-semibold text-foreground mb-5">
           <User className="h-5 w-5 text-primary" />Edit Profile
@@ -128,18 +123,20 @@ export function SettingsPage() {
                 className="w-full rounded-lg border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Organization Name</span>
-              </label>
-              <input
-                type="text"
-                value={profile.organization_name}
-                onChange={(e) => setProfile((p) => ({ ...p, organization_name: e.target.value }))}
-                placeholder="Your organization (optional)"
-                className="w-full rounded-lg border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
-              />
-            </div>
+            {showOrganizationField && (
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Organization Name</span>
+                </label>
+                <input
+                  type="text"
+                  value={profile.organization_name}
+                  onChange={(e) => setProfile((p) => ({ ...p, organization_name: e.target.value }))}
+                  placeholder="Your organization (optional)"
+                  className="w-full rounded-lg border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
               <input
@@ -165,7 +162,6 @@ export function SettingsPage() {
         )}
       </div>
 
-      {/* Danger zone */}
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
         <h2 className="flex items-center gap-2 font-semibold text-foreground mb-2">
           <LogOut className="h-5 w-5 text-destructive" />Sign Out
