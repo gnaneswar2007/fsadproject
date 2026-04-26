@@ -119,20 +119,40 @@ function RecipientOrgsView() {
   const { user } = useAuth();
   const [claimed, setClaimed] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [claimedIds] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("claimed_donations") || "[]"); } catch { return []; }
-  });
 
   const load = async () => {
     setLoading(true);
+    let claimedIds = [];
+    try {
+      claimedIds = Array.from(new Set((JSON.parse(localStorage.getItem("claimed_donations") || "[]") || []).map((id) => String(id))));
+    } catch {
+      claimedIds = [];
+    }
+
     // Load all donations that have been claimed (by this recipient or in general from localStorage)
     const allDonations = await getDonations();
-    const mine = allDonations.filter((d) => claimedIds.includes(d.id));
+    const mine = allDonations.filter((d) => claimedIds.includes(String(d.id)));
     setClaimed(mine);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [user]);
+
+  useEffect(() => {
+    const refresh = () => {
+      load();
+    };
+
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("claimed:updated", refresh);
+
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("claimed:updated", refresh);
+    };
+  }, [user]);
 
   return (
     <div className="space-y-8">

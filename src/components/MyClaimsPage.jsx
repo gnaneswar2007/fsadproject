@@ -61,6 +61,22 @@ export function MyClaimsPage() {
 
     useEffect(() => { load(); }, [user]);
 
+    useEffect(() => {
+        const refresh = () => {
+            load();
+        };
+
+        window.addEventListener("storage", refresh);
+        window.addEventListener("focus", refresh);
+        window.addEventListener("claimed:updated", refresh);
+
+        return () => {
+            window.removeEventListener("storage", refresh);
+            window.removeEventListener("focus", refresh);
+            window.removeEventListener("claimed:updated", refresh);
+        };
+    }, [user]);
+
     const handleMarkPickedUp = async (donation) => {
         await updateDonationStatus(donation.id, "picked_up");
         setClaims((prev) => prev.map((d) => d.id === donation.id ? { ...d, status: "picked_up" } : d));

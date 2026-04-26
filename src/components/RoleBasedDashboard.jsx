@@ -366,6 +366,7 @@ function RecipientDashboard() {
       const next = Array.from(new Set([...claimedIds.map((id) => String(id)), String(donation.id)]));
       setClaimedIds(next);
       localStorage.setItem("claimed_donations", JSON.stringify(next));
+      window.dispatchEvent(new Event("claimed:updated"));
       await fetchDonations();
       toast({ title: "Claimed! 🎉", description: `${donation.food_name} has been reserved for pickup.` });
     } finally {

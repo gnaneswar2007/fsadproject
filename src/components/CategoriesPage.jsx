@@ -69,6 +69,7 @@ export function CategoriesPage() {
         const claimedIds = JSON.parse(localStorage.getItem("claimed_donations") || "[]");
         claimedIds.push(donation.id);
         localStorage.setItem("claimed_donations", JSON.stringify(claimedIds));
+        window.dispatchEvent(new Event("claimed:updated"));
         setDonations((prev) => prev.filter((d) => d.id !== donation.id));
         toast({ title: "Claimed! 🎉", description: `${donation.food_name} has been reserved for pickup.` });
         setClaiming(null);
