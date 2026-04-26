@@ -359,6 +359,11 @@ export async function updateDonationStatus(id, status) {
   if (idx === -1) return null;
   donations[idx].status = status;
   writeStore(DONATIONS_CACHE_KEY, donations);
+
+  // Trigger same-tab listeners so dashboard sections refresh immediately.
+  window.dispatchEvent(new Event("storage"));
+  window.dispatchEvent(new Event("donations:updated"));
+
   return donations[idx];
 }
 

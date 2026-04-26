@@ -32,31 +32,26 @@ export function CategoriesPage() {
 
     const load = async () => {
         setLoading(true);
-
-        let storedClaimedIds = [];
-        try {
-            storedClaimedIds = Array.from(new Set((JSON.parse(localStorage.getItem("claimed_donations") || "[]") || []).map((id) => String(id))));
-        } catch {
-            storedClaimedIds = [];
-        }
-
         const allDonations = await getDonations();
-        const claimableStatuses = new Set(["claimed", "picked_up"]);
-        const validClaimedIds = new Set(
-            allDonations
-                .filter((d) => claimableStatuses.has(d.status))
-                .map((d) => String(d.id))
-        );
-
-        const nextClaimedIds = storedClaimedIds.filter((id) => validClaimedIds.has(id));
-        localStorage.setItem("claimed_donations", JSON.stringify(nextClaimedIds));
-
-        const claimedSet = new Set(nextClaimedIds);
-        setDonations(allDonations.filter((d) => d.status === "available" || claimedSet.has(String(d.id))));
+        setDonations(allDonations.filter((d) => d.status === "available"));
         setLoading(false);
     };
 
     useEffect(() => { load(); }, []);
+
+    useEffect(() => {
+        const refresh = () => {
+            load();
+        };
+        window.addEventListener("storage", refresh);
+        window.addEventListener("focus", refresh);
+        window.addEventListener("donations:updated", refresh);
+        return () => {
+            window.removeEventListener("storage", refresh);
+            window.removeEventListener("focus", refresh);
+            window.removeEventListener("donations:updated", refresh);
+        };
+    }, []);
 
     // Build category groups
     const categories = {};
