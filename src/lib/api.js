@@ -1,9 +1,10 @@
 import axios from "axios";
 
-// Use relative path for dev proxy; fall back to full URL for production builds
-const API_BASE_URL = import.meta.env.PROD
-  ? (import.meta.env.VITE_API_BASE_URL || "https://fsadprojectbackend.onrender.com/api")
-  : "/api";
+
+// Render backend for auth only
+const RENDER_AUTH_BASE_URL = "https://fsadprojectbackend.onrender.com/api";
+// Local backend for all other requests
+const LOCAL_API_BASE_URL = "http://localhost:8080/api";
 
 function getErrorMessage(payload, fallback) {
   if (!payload) return fallback;
@@ -11,17 +12,30 @@ function getErrorMessage(payload, fallback) {
   return payload.message || payload.error || fallback;
 }
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+
+function getApiClient(baseURL) {
+  return axios.create({
+    baseURL,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+}
+
 
 export async function apiRequest(path, options = {}) {
-  const { method = "GET", body, headers = {} } = options;
+  const { method = "GET", body, headers = {}, forceAuth = false } = options;
+  // Route auth endpoints to Render, everything else to local
+  const isAuth =
+    path.startsWith("/auth/") ||
+    path === "/auth/login" ||
+    path === "/auth/register" ||
+    path === "/auth/verify-otp" ||
+    path === "/auth/resend-otp" ||
+    forceAuth;
+  const client = getApiClient(isAuth ? RENDER_AUTH_BASE_URL : LOCAL_API_BASE_URL);
   try {
-    const response = await apiClient.request({
+    const response = await client.request({
       url: path,
       method,
       headers,

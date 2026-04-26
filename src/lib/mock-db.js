@@ -7,6 +7,67 @@ const DELETED_DONATION_KEYS_KEY = "deleted_donation_keys";
 const USERS_KEY = "mock_users";
 const AUTH_KEY = "mock_auth_user";
 
+function getDemoDonations() {
+  return [
+    {
+      id: "demo-1",
+      food_name: "Mixed Vegetables",
+      category: "produce",
+      quantity: "20 kg",
+      expiry_date: "2026-04-30T12:00:00",
+      pickup_location: "Central Market",
+      description: "Fresh surplus produce for same-day pickup.",
+      donor_id: "demo.donor@foodsaver.app",
+      donor_name: "demo.donor@foodsaver.app",
+      donor_phone: "1234567890",
+      status: "available",
+      created_at: "2026-04-24T09:00:00Z",
+    },
+    {
+      id: "demo-2",
+      food_name: "Whole Wheat Bread",
+      category: "bakery",
+      quantity: "12 packs",
+      expiry_date: "2026-04-28T08:00:00",
+      pickup_location: "North Kitchen",
+      description: "Bakery items with one to two days remaining.",
+      donor_id: "demo.donor@foodsaver.app",
+      donor_name: "demo.donor@foodsaver.app",
+      donor_phone: "1234567890",
+      status: "available",
+      created_at: "2026-04-24T10:00:00Z",
+    },
+    {
+      id: "demo-3",
+      food_name: "Milk Cartons",
+      category: "dairy",
+      quantity: "8 crates",
+      expiry_date: "2026-04-27T18:00:00",
+      pickup_location: "Cold Storage Bay",
+      description: "Refrigerated donation for immediate collection.",
+      donor_id: "demo.donor@foodsaver.app",
+      donor_name: "demo.donor@foodsaver.app",
+      donor_phone: "1234567890",
+      status: "available",
+      created_at: "2026-04-24T11:00:00Z",
+    },
+    {
+      id: "demo-claimed-1",
+      food_name: "Prepared Meals",
+      category: "prepared",
+      quantity: "15 trays",
+      expiry_date: "2026-04-26T20:00:00",
+      pickup_location: "Community Hall",
+      description: "Reserved for pickup by a recipient organization.",
+      donor_id: "demo.donor@foodsaver.app",
+      donor_name: "demo.donor@foodsaver.app",
+      donor_phone: "1234567890",
+      status: "claimed",
+      created_at: "2026-04-24T12:00:00Z",
+    },
+  ];
+}
+
 function readStore(key, fallback) {
   try {
     return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
@@ -201,8 +262,13 @@ export async function getDonations() {
   all.forEach((item) => byId.set(item.id, item));
   const normalized = applyStatusOverrides(Array.from(byId.values()).map(normalizeDonation));
   const visible = filterDeletedDonations(mergeLocalDonations(normalized, cached));
-  writeStore(DONATIONS_CACHE_KEY, visible);
-  return visible;
+  const hasAvailable = visible.some((donation) => donation.status === "available");
+  const nextVisible = import.meta.env.PROD && !hasAvailable
+    ? filterDeletedDonations(mergeLocalDonations(visible, getDemoDonations()))
+    : visible;
+
+  writeStore(DONATIONS_CACHE_KEY, nextVisible);
+  return nextVisible;
 }
 
 export async function getDonationsByUser(userId) {
