@@ -339,7 +339,7 @@ function RecipientDashboard() {
 
     const claimedSet = new Set(nextClaimedIds);
     setVisibleDonations(
-      allDonations.filter((d) => d.status === "available" || claimedSet.has(String(d.id)))
+      allDonations.filter((d) => d.status === "available" || (claimedSet.has(String(d.id)) && d.status === "claimed"))
     );
 
     setLoading(false);
@@ -379,8 +379,11 @@ function RecipientDashboard() {
       : days <= 3 ? "bg-warning/10 text-warning border-warning/30"
         : "bg-success/10 text-success border-success/30";
 
-  const categories = ["all", ...new Set(visibleDonations.map((d) => d.category))];
-  const filtered = categoryFilter === "all" ? visibleDonations : visibleDonations.filter((d) => d.category === categoryFilter);
+  const availableDonations = visibleDonations.filter((d) => d.status === "available");
+  const claimedPendingPickup = visibleDonations.filter((d) => d.status === "claimed");
+  const categories = ["all", ...new Set(availableDonations.map((d) => d.category))];
+  const filteredBase = categoryFilter === "all" ? availableDonations : availableDonations.filter((d) => d.category === categoryFilter);
+  const filtered = [...claimedPendingPickup, ...filteredBase];
   const totalClaimed = claimedIds.length;
 
   return (
@@ -396,10 +399,10 @@ function RecipientDashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Available Now" value={String(visibleDonations.filter((d) => d.status === "available").length)} subtitle="Open listings" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/active-listings")} />
+        <StatCard title="Available Now" value={String(availableDonations.length)} subtitle="Open listings" icon={Gift} variant="primary" onClick={() => navigate("/dashboard/active-listings")} />
         <StatCard title="My Claims" value={String(totalClaimed)} subtitle="Claimed or picked up" icon={HandHeart} variant="secondary" onClick={() => navigate("/dashboard/my-claims")} />
-        <StatCard title="Expiring Soon" value={String(visibleDonations.filter((d) => daysUntil(d.expiry_date) <= 3).length)} subtitle="Within 3 days" icon={Clock} variant="accent" onClick={() => navigate("/dashboard/expiring-soon")} />
-        <StatCard title="Categories" value={String(new Set(visibleDonations.map((d) => d.category)).size)} subtitle="Types in this view" icon={Package} onClick={() => navigate("/dashboard/categories")} />
+        <StatCard title="Expiring Soon" value={String(availableDonations.filter((d) => daysUntil(d.expiry_date) <= 3).length)} subtitle="Within 3 days" icon={Clock} variant="accent" onClick={() => navigate("/dashboard/expiring-soon")} />
+        <StatCard title="Categories" value={String(new Set(availableDonations.map((d) => d.category)).size)} subtitle="Available types" icon={Package} onClick={() => navigate("/dashboard/categories")} />
       </div>
 
       {/* Category filter pills */}
