@@ -97,6 +97,26 @@ function filterDeletedDonations(donations) {
   return donations.filter((d) => !deletedIds.has(String(d.id)) && !deletedKeys.has(donationKey(d)));
 }
 
+function isLocalDonation(donation) {
+  return String(donation?.id || "").startsWith("local-");
+}
+
+function mergeLocalDonations(remoteDonations, cachedDonations) {
+  const localCachedDonations = cachedDonations.filter(isLocalDonation);
+  if (localCachedDonations.length === 0) return remoteDonations;
+
+  const remoteIds = new Set(remoteDonations.map((donation) => String(donation.id)));
+  const merged = [...remoteDonations];
+
+  localCachedDonations.forEach((donation) => {
+    if (!remoteIds.has(String(donation.id))) {
+      merged.unshift(donation);
+    }
+  });
+
+  return merged;
+}
+
 function rememberDeletedDonation(id, donation) {
   const deletedIds = getDeletedDonationIds();
   deletedIds.add(String(id));
@@ -180,7 +200,7 @@ export async function getDonations() {
   const byId = new Map();
   all.forEach((item) => byId.set(item.id, item));
   const normalized = applyStatusOverrides(Array.from(byId.values()).map(normalizeDonation));
-  const visible = filterDeletedDonations(normalized);
+  const visible = filterDeletedDonations(mergeLocalDonations(normalized, cached));
   writeStore(DONATIONS_CACHE_KEY, visible);
   return visible;
 }
@@ -193,7 +213,7 @@ export async function getDonationsByUser(userId) {
   try {
     const data = await apiRequest(`/donations?donorEmail=${encodeURIComponent(email)}`);
     const normalized = applyStatusOverrides((data || []).map(normalizeDonation));
-    const visible = filterDeletedDonations(normalized);
+    const visible = filterDeletedDonations(mergeLocalDonations(normalized, readStore(DONATIONS_CACHE_KEY, [])));
     writeStore(DONATIONS_CACHE_KEY, visible);
     return visible;
   } catch {
@@ -242,7 +262,8 @@ export async function addDonation({
     });
     normalized = normalizeDonation(created);
   } catch (error) {
-    if (!isNetworkError(error)) throw error;
+    const status = error?.status;
+    if (!isNetworkError(error) && status !== 403) throw error;
 
     // Allow local-only listing when backend is unreachable.
     normalized = {

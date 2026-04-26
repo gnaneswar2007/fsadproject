@@ -37,7 +37,10 @@ export async function apiRequest(path, options = {}) {
       throw new Error(error?.message || "Network error");
     }
 
-    throw new Error(getErrorMessage(payload, `Request failed with status ${status}`));
+    const requestError = new Error(getErrorMessage(payload, `Request failed with status ${status}`));
+    requestError.status = status;
+    requestError.payload = payload;
+    throw requestError;
   }
 }
 
