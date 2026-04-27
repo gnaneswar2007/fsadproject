@@ -112,7 +112,11 @@ function persistSession(email) {
 
 export async function signIn(email, password) {
   try {
-    await loginRequest(email, password);
+    const response = await loginRequest(email, password);
+    const token = response?.token;
+    if (token) {
+      localStorage.setItem('jwt_token', token);
+    }
     return persistSession(email);
   } catch (err) {
     return {
@@ -189,6 +193,7 @@ export async function resendSignupOtp(email) {
 
 export async function signOut() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem('jwt_token');
   notifyAuthStateChanged();
   return { error: null };
 }

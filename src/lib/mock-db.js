@@ -90,20 +90,80 @@ function readAuthRole() {
   return auth?.role || "donor";
 }
 
+function pickFirst(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null) return value;
+  }
+  return undefined;
+}
+
 function normalizeDonation(apiDonation) {
+  const id = pickFirst(apiDonation.id, apiDonation._id);
+  const foodName = pickFirst(apiDonation.foodName, apiDonation.food_name);
+  const expiryDate = pickFirst(apiDonation.expiryDate, apiDonation.expiry_date);
+  const pickupLocation = pickFirst(apiDonation.pickupLocation, apiDonation.pickup_location);
+  const donorEmail = pickFirst(apiDonation.donorEmail, apiDonation.donor_email);
+  const phoneNumber = pickFirst(apiDonation.phoneNumber, apiDonation.phone_number);
+  const createdAt = pickFirst(apiDonation.createdAt, apiDonation.created_at);
+
   return {
-    id: apiDonation.id,
-    food_name: apiDonation.foodName,
+    id,
+    food_name: foodName,
     category: apiDonation.category,
     quantity: apiDonation.quantity,
-    expiry_date: apiDonation.expiryDate,
-    pickup_location: apiDonation.pickupLocation,
+    expiry_date: expiryDate,
+    pickup_location: pickupLocation,
     description: apiDonation.description || "",
-    donor_id: apiDonation.donorEmail,
-    donor_name: apiDonation.donorEmail,
-    donor_phone: apiDonation.phoneNumber || "",
+    donor_id: donorEmail,
+    donor_name: donorEmail,
+    donor_phone: phoneNumber || "",
     status: apiDonation.status || "available",
-    created_at: apiDonation.createdAt,
+    created_at: createdAt,
+  };
+}
+
+function normalizeStats(apiStats) {
+  if (!apiStats || typeof apiStats !== "object") {
+    return { total: 0, available: 0, claimed: 0, users: 0 };
+  }
+
+  return {
+    total: Number(
+      pickFirst(
+        apiStats.totalDonations,
+        apiStats.total,
+        apiStats.total_donations,
+        0
+      )
+    ) || 0,
+    available: Number(
+      pickFirst(
+        apiStats.activeListings,
+        apiStats.available,
+        apiStats.availableDonations,
+        apiStats.available_donations,
+        0
+      )
+    ) || 0,
+    claimed: Number(
+      pickFirst(
+        apiStats.recipientAccepted,
+        apiStats.claimed,
+        apiStats.claimedDonations,
+        apiStats.claimed_donations,
+        apiStats.pickedUp,
+        apiStats.picked_up,
+        0
+      )
+    ) || 0,
+    users: Number(
+      pickFirst(
+        apiStats.users,
+        apiStats.totalUsers,
+        apiStats.total_users,
+        0
+      )
+    ) || 0,
   };
 }
 
@@ -117,11 +177,6 @@ function toLocalDateTimeString(isoValue) {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const seconds = String(date.getSeconds()).padStart(2, "0");
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-}
-
-function isNetworkError(error) {
-  const message = String(error?.message || "").toLowerCase();
-  return error instanceof TypeError || message.includes("failed to fetch") || message.includes("networkerror") || message.includes("network error") || message.includes("load failed");
 }
 
 function applyStatusOverrides(donations) {
@@ -246,17 +301,21 @@ export async function getDonations() {
   }
 
   const all = [];
-  try {
-    await Promise.all(
-      Array.from(emails).map(async (donorEmail) => {
-        const data = await apiRequest(`/donations?donorEmail=${encodeURIComponent(donorEmail)}`);
-        (data || []).forEach((item) => all.push(item));
-      })
-    );
-  } catch {
-    // On network failure, return cached donations with status overrides applied
+  const results = await Promise.allSettled(
+    Array.from(emails).map(async (donorEmail) => {
+      const data = await apiRequest(`/donations?donorEmail=${encodeURIComponent(donorEmail)}`);
+      return data || [];
+    })
+  );
+
+  const successResponses = results.filter((r) => r.status === "fulfilled");
+  if (successResponses.length === 0) {
     return filterDeletedDonations(applyStatusOverrides(cached));
   }
+
+  successResponses.forEach((result) => {
+    result.value.forEach((item) => all.push(item));
+  });
 
   const byId = new Map();
   all.forEach((item) => byId.set(item.id, item));
@@ -297,6 +356,21 @@ export async function getDonationById(id) {
   return all.find((d) => String(d.id) === String(id)) || null;
 }
 
+export async function getDonationStats() {
+  try {
+    const stats = await apiRequest("/dashboard-stats");
+    return normalizeStats(stats);
+  } catch {
+    const all = await getDonations();
+    return {
+      total: all.length,
+      available: all.filter((d) => d.status === "available").length,
+      claimed: all.filter((d) => ["claimed", "picked_up"].includes(d.status)).length,
+      users: getUsers().length,
+    };
+  }
+}
+
 export async function addDonation({
   food_name,
   category,
@@ -311,8 +385,11 @@ export async function addDonation({
     throw new Error("Please sign in before creating a donation");
   }
 
+  const normalizedExpiry = toLocalDateTimeString(expiry_date);
   let normalized;
+
   try {
+    console.log("Attempting to save donation to backend...");
     const created = await apiRequest("/donations", {
       method: "POST",
       body: {
@@ -323,21 +400,25 @@ export async function addDonation({
         pickup_location,
         phone_number: donor_phone,
         description: description || "",
-        expiry_date: toLocalDateTimeString(expiry_date),
+        expiry_date: normalizedExpiry,
       },
     });
-    normalized = normalizeDonation(created);
-  } catch (error) {
-    const status = error?.status;
-    if (!isNetworkError(error) && status !== 403) throw error;
 
-    // Allow local-only listing when backend is unreachable.
+    console.log("Backend response:", created);
+    normalized = normalizeDonation(created);
+
+    if (!normalized?.id) {
+      throw new Error("Donation was not saved by backend. Please try again.");
+    }
+  } catch (error) {
+    console.log("Backend API failed, falling back to local storage. Error:", error);
+    // Keep local-storage behavior when backend is unavailable or rejects the request.
     normalized = {
       id: `local-${Date.now()}`,
       food_name,
       category,
       quantity,
-      expiry_date: toLocalDateTimeString(expiry_date),
+      expiry_date: normalizedExpiry,
       pickup_location,
       description: description || "",
       donor_id: donorEmail,
