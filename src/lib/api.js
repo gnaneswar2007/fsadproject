@@ -3,10 +3,9 @@ import axios from "axios";
 
 
 
-// Render backend for auth only
+// Render backend for all requests
 const RENDER_AUTH_BASE_URL = "https://fsadprojectbackend.onrender.com/api";
-// Local backend for all other requests
-const LOCAL_API_BASE_URL = "http://localhost:8080/api";
+const LOCAL_API_BASE_URL = "https://fsadprojectbackend.onrender.com/api";
 
 // Use Render backend for auth endpoints
 const AUTH_API_BASE_URL = "https://fsadprojectbackend.onrender.com/api";
