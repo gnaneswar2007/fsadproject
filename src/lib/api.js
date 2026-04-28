@@ -48,16 +48,9 @@ const authApiClient = axios.create({
 
 export async function apiRequest(path, options = {}) {
 
-  const { method = "GET", body, headers = {}, forceAuth = false } = options;
-  // Route auth endpoints to Render, everything else to local
-  const isAuth =
-    path.startsWith("/auth/") ||
-    path === "/auth/login" ||
-    path === "/auth/register" ||
-    path === "/auth/verify-otp" ||
-    path === "/auth/resend-otp" ||
-    forceAuth;
-  const client = getApiClient(isAuth ? RENDER_AUTH_BASE_URL : LOCAL_API_BASE_URL);
+  const { method = "GET", body, headers = {} } = options;
+  // Always use Render backend
+  const client = getApiClient(RENDER_AUTH_BASE_URL);
   
   // Add JWT token to headers if available
   const token = localStorage.getItem('jwt_token');
