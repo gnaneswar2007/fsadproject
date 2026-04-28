@@ -3,6 +3,7 @@ import {
   registerRequest,
   resendOtpRequest,
   verifyOtpRequest,
+  getCurrentUserRequest
 } from "@/lib/api";
 import { upsertUser } from "@/lib/mock-db";
 
@@ -117,7 +118,16 @@ export async function signIn(email, password) {
     if (token) {
       localStorage.setItem('jwt_token', token);
     }
-    return persistSession(email);
+    
+    // Fetch user details after successful login
+    try {
+      const userResponse = await getCurrentUserRequest();
+      const userEmail = userResponse?.message?.replace("Logged in as: ", "") || email;
+      return persistSession(userEmail);
+    } catch (userErr) {
+      // Fallback to email if user fetch fails
+      return persistSession(email);
+    }
   } catch (err) {
     return {
       data: null,

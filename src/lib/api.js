@@ -133,6 +133,10 @@ export function verifyOtpRequest({ email, otp, purpose = "REGISTER" }) {
   });
 }
 
+export function getCurrentUserRequest() {
+  return apiRequest("/users/me");
+}
+
 export function resendOtpRequest({ email, purpose = "REGISTER" }) {
   return authApiRequest("/auth/resend-otp", {
     method: "POST",
