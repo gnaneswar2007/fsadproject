@@ -168,12 +168,6 @@ export default function Auth() {
       return;
     }
     
-    // Check if email ends with @gmail.com
-    if (!form.email.toLowerCase().endsWith("@gmail.com")) {
-      toast({ title: "Invalid email", description: "Only Gmail addresses are allowed for registration", variant: "destructive" });
-      return;
-    }
-    
     setLoading(true);
     try {
       const effectiveRole = form.email.toLowerCase() === SUPER_ADMIN_EMAIL ? "admin" : selectedRole;
@@ -188,8 +182,8 @@ export default function Auth() {
       if (error) {
         toast({ title: "Registration failed", description: error.message, variant: "destructive" });
       } else {
-        toast({ title: "Registration successful!", description: "Your account has been created and you are now logged in." });
-        setTimeout(() => navigate("/dashboard"), 100);
+        toast({ title: "OTP sent", description: "Please verify your email on the OTP page." });
+        navigate(`/auth/verify-otp?email=${encodeURIComponent(form.email)}`);
       }
     } catch (err) {
       toast({ title: "Registration failed", description: err.message || "Could not create account", variant: "destructive" });

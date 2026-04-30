@@ -1,6 +1,8 @@
 import {
   loginRequest,
   registerRequest,
+  resendOtpRequest,
+  verifyOtpRequest,
   getCurrentUserRequest
 } from "@/lib/api";
 import { upsertUser } from "@/lib/mock-db";
@@ -144,12 +146,57 @@ export async function signUp(email, password, role, fullName, organizationName) 
       password,
     });
 
-    // Direct login after successful registration
-    return persistSession(email);
+    setPendingSignup(email, password);
+
+    return {
+      data: { requiresOtp: true, email },
+      error: null,
+    };
   } catch (err) {
     return {
       data: null,
       error: { message: err.message || "Registration failed" },
+    };
+  }
+}
+
+export async function verifySignupOtp(email, otp) {
+  try {
+    await verifyOtpRequest({
+      email,
+      otp,
+      purpose: "REGISTER",
+    });
+
+    const pending = getPendingSignup();
+    if (pending?.email === email) {
+      clearPendingSignup();
+    }
+
+    return {
+      data: { verified: true, requiresLogin: true },
+      error: null,
+    };
+  } catch (err) {
+    return {
+      data: null,
+      error: { message: err.message || "OTP verification failed" },
+    };
+  }
+}
+
+export async function resendSignupOtp(email) {
+  try {
+    await resendOtpRequest({
+      email,
+      purpose: "REGISTER",
+    });
+
+    return { data: { resent: true }, error: null };
+  } catch (err) {
+    return {
+      data: null,
+      error: { message: err.message || "Could not resend OTP" },
     };
   }
 }

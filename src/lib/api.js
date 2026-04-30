@@ -122,6 +122,27 @@ export function registerRequest({ name, email, password }) {
   });
 }
 
+export function verifyOtpRequest({ email, otp, purpose = "REGISTER" }) {
+  return authApiRequest("/auth/verify-otp", {
+    method: "POST",
+    body: {
+      email,
+      otp,
+      purpose,
+    },
+  });
+}
+
 export function getCurrentUserRequest() {
   return apiRequest("/users/me");
+}
+
+export function resendOtpRequest({ email, purpose = "REGISTER" }) {
+  return authApiRequest("/auth/resend-otp", {
+    method: "POST",
+    body: {
+      email,
+      purpose,
+    },
+  });
 }
