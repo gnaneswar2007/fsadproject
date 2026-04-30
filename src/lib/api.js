@@ -63,6 +63,7 @@ export async function apiRequest(path, options = {}) {
       method,
       headers: authHeaders,
       data: body,
+      timeout: 10000, // 10 second timeout
     });
     return response.data ?? null;
   } catch (error) {
@@ -84,6 +85,7 @@ async function authApiRequest(path, options = {}) {
       method,
       headers,
       data: body,
+      timeout: 10000, // 10 second timeout
     });
     return response.data ?? null;
   } catch (error) {
@@ -93,12 +95,10 @@ async function authApiRequest(path, options = {}) {
       throw new Error(error?.message || "Network error");
     }
 
-
     const requestError = new Error(getErrorMessage(payload, `Request failed with status ${status}`));
     requestError.status = status;
     requestError.payload = payload;
     throw requestError;
-
   }
 }
 
